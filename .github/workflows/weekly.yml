@@ -14,6 +14,10 @@ on:
         options: [test, fuld]
         default: test
 
+env:
+  PYTHONUNBUFFERED: "1"
+  PROVIDER: serpapi   # datakilde: serpapi (Google Flights) eller ignav
+
 permissions:
   contents: write
 
@@ -34,27 +38,34 @@ jobs:
       - name: Test (2 søgninger, gemmer intet)
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'test'
         env:
+          SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
           IGNAV_API_KEY: ${{ secrets.IGNAV_API_KEY }}
         run: python fetch_prices.py --test 2
 
       - name: Hent priser (manuel fuld kørsel)
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'fuld'
         env:
+          SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
           IGNAV_API_KEY: ${{ secrets.IGNAV_API_KEY }}
         run: python fetch_prices.py
 
       - name: Hent priser (planlagt mandag kl. 07)
         if: github.event_name == 'schedule'
         env:
+          SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
           IGNAV_API_KEY: ${{ secrets.IGNAV_API_KEY }}
         run: python fetch_prices.py --scheduled
 
+      # Kører også hvis hentningen fejlede eller blev afbrudt, så de priser
+      # der nåede at blive hentet (og betalt) altid bliver gemt.
       - name: Gem data i repository
-        if: github.event_name == 'schedule' || inputs.mode == 'fuld'
+        if: always() && (github.event_name == 'schedule' || inputs.mode == 'fuld')
         run: |
           [ -d data ] || exit 0
           git config user.name "flypris-bot"
           git config user.email "flypris-bot@users.noreply.github.com"
           git add data/
-          git diff --cached --quiet || git commit -m "Priser $(date -u +%F)"
+          git diff --cached --quiet && exit 0
+          git commit -m "Priser $(date -u +%F)"
+          git pull --rebase
           git push
