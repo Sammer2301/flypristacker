@@ -1,7 +1,6 @@
 origin,destination,year,week_from,week_to,weekdays
-CPH,CHQ,2027,18,43,lør
-CPH,LCA,2027,18,43,lør
-CPH,PMI,2027,18,43,lør
-BLL,CHQ,2027,18,43,lør
-BLL,LCA,2027,18,43,lør
-BLL,PMI,2027,18,43,lør
+CPH,CHQ,2027,18,39,tor;lør
+CPH,LCA,2027,18,39,tor;lør
+CPH,PMI,2027,18,39,tor;lør
+BLL,CHQ,2027,18,39,tor;lør
+BLL,PMI,2027,18,39,tor;lør

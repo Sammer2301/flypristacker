@@ -35,6 +35,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -76,6 +77,7 @@ PROVIDERS = {
             "show_hidden": "true",  # medtag også "flere fly"
         },
         "file": "prices_google.csv",
+        "per_hour": 190,  # Starter-planen tillader 200 i timen; lidt margen
     },
     "ignav": {
         "key_env": "IGNAV_API_KEY",
@@ -88,11 +90,14 @@ PROVIDERS = {
             "market": "DK",
         },
         "file": "prices.csv",
+        "per_hour": None,
     },
 }
 if PROVIDER not in PROVIDERS:
     sys.exit(f"Ukendt PROVIDER '{PROVIDER}'. Brug 'serpapi' eller 'ignav'.")
 SEARCH_SETTINGS = PROVIDERS[PROVIDER]["params"]
+# Maks. søgninger i timen (kan overstyres med MAX_PER_HOUR, fx ved større SerpApi-plan)
+PER_HOUR = int(os.environ.get("MAX_PER_HOUR") or PROVIDERS[PROVIDER]["per_hour"] or 0)
 EXPECTED_CURRENCY = "DKK"
 SCHEDULED_HOUR = 7  # lokal tid (København) for den ugentlige kørsel
 
@@ -387,11 +392,25 @@ def main():
     ok = fails = total_rows = 0
     currencies = set()
     stop = {"fatal": None}
+    # Bremse: højst PER_HOUR søgninger i timen, jævnt fordelt
+    interval = 3600 / PER_HOUR if PER_HOUR else 0
+    pace = {"next": time.monotonic(), "lock": threading.Lock()}
+    if interval:
+        print(f"Bremse: højst {PER_HOUR} søgninger i timen "
+              f"(ca. {len(jobs) * interval / 60:.0f} min for denne kørsel)")
 
     def run_one(job):
         o, d, date = job
         if stop["fatal"]:
             return None
+        if interval:
+            with pace["lock"]:
+                wait = pace["next"] - time.monotonic()
+                pace["next"] = max(pace["next"], time.monotonic()) + interval
+            if wait > 0:
+                time.sleep(wait)
+            if stop["fatal"]:
+                return None
         try:
             return search(api_key, o, d, date)
         except FatalApiError as e:
