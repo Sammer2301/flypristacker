@@ -96,6 +96,8 @@ PROVIDERS = {
 if PROVIDER not in PROVIDERS:
     sys.exit(f"Ukendt PROVIDER '{PROVIDER}'. Brug 'serpapi' eller 'ignav'.")
 SEARCH_SETTINGS = PROVIDERS[PROVIDER]["params"]
+# Maks. antal gensøgninger per kørsel, når Google Flights mangler en pris (beskytter kvoten)
+MAX_PRICE_RETRIES = int(os.environ.get("MAX_PRICE_RETRIES", "30"))
 # Maks. søgninger i timen (kan overstyres med MAX_PER_HOUR, fx ved større SerpApi-plan)
 PER_HOUR = int(os.environ.get("MAX_PER_HOUR") or PROVIDERS[PROVIDER]["per_hour"] or 0)
 EXPECTED_CURRENCY = "DKK"
@@ -222,11 +224,13 @@ def _http(req, retries=4):
     raise RuntimeError(last_err)
 
 
-def search(api_key, origin, destination, date):
+def search(api_key, origin, destination, date, fresh=False):
     cfg = PROVIDERS[PROVIDER]
     if PROVIDER == "serpapi":
         q = dict(cfg["params"], departure_id=origin, arrival_id=destination,
                  outbound_date=date.isoformat(), api_key=api_key)
+        if fresh:
+            q["no_cache"] = "true"  # ny søgning hos Google, ikke SerpApis cache
         req = urllib.request.Request(cfg["url"] + "?" + urllib.parse.urlencode(q),
                                      headers={"Accept": "application/json"})
         data = _http(req)
@@ -301,8 +305,8 @@ def _parse_serpapi(data, origin, destination, date, today, observed_at):
     for it in (data.get("best_flights") or []) + (data.get("other_flights") or []):
         segs = it.get("flights") or []
         price = it.get("price")
-        if not segs or price is None or it.get("layovers"):
-            continue  # kun direkte fly med en pris
+        if not segs or it.get("layovers"):
+            continue  # kun direkte fly
         fnums = [(s.get("flight_number") or "").replace(" ", "") for s in segs]
         codes = sorted({(s.get("flight_number") or "").split(" ")[0] for s in segs} - {""})
         row = {
@@ -314,16 +318,29 @@ def _parse_serpapi(data, origin, destination, date, today, observed_at):
             "departure_time_local": _gf_time((segs[0].get("departure_airport") or {}).get("time")),
             "arrival_time_local": _gf_time((segs[-1].get("arrival_airport") or {}).get("time")),
             "duration_minutes": it.get("total_duration", ""),
-            "price": price,
+            "price": "" if price is None else price,
             "currency": SEARCH_SETTINGS["currency"],
-            "price_status": "",
+            "price_status": "unavailable" if price is None else "",
             "cabin_class": "economy",
             "self_transfer": False,
         }
         key = row["flight_numbers"]
-        if key not in best or float(price) < float(best[key]["price"]):
-            best[key] = row  # samme fly kan optræde flere gange; behold laveste pris
-    return sorted(best.values(), key=lambda r: float(r["price"]))
+        prev = best.get(key)
+        if prev is None or (price is not None and (prev["price"] == "" or float(price) < float(prev["price"]))):
+            best[key] = row  # samme fly kan optræde flere gange; behold laveste kendte pris
+    return sorted(best.values(), key=lambda r: float(r["price"]) if r["price"] != "" else 1e12)
+
+
+def missing_prices(data):
+    """True hvis Google Flights returnerede et direkte fly uden pris."""
+    return any(not it.get("layovers") and it.get("flights") and it.get("price") is None
+               for it in (data.get("best_flights") or []) + (data.get("other_flights") or []))
+
+
+def merge_serpapi(first, second):
+    """Saml to svar for samme søgning, så en pris fra gensøgningen udfylder et hul."""
+    return {"best_flights": (first.get("best_flights") or []) + (second.get("best_flights") or []),
+            "other_flights": (first.get("other_flights") or []) + (second.get("other_flights") or [])}
 
 def append_csv(path, columns, rows):
     if not rows:
@@ -399,20 +416,40 @@ def main():
         print(f"Bremse: højst {PER_HOUR} søgninger i timen "
               f"(ca. {len(jobs) * interval / 60:.0f} min for denne kørsel)")
 
-    def run_one(job):
-        o, d, date = job
-        if stop["fatal"]:
-            return None
+    retries = {"left": MAX_PRICE_RETRIES, "used": 0, "lock": threading.Lock()}
+
+    def wait_turn():
         if interval:
             with pace["lock"]:
                 wait = pace["next"] - time.monotonic()
                 pace["next"] = max(pace["next"], time.monotonic()) + interval
             if wait > 0:
                 time.sleep(wait)
-            if stop["fatal"]:
-                return None
+
+    def run_one(job):
+        o, d, date = job
+        if stop["fatal"]:
+            return None
+        wait_turn()
+        if stop["fatal"]:
+            return None
         try:
-            return search(api_key, o, d, date)
+            data = search(api_key, o, d, date)
+            if PROVIDER == "serpapi" and missing_prices(data):
+                with retries["lock"]:
+                    ok_retry = retries["left"] > 0
+                    if ok_retry:
+                        retries["left"] -= 1
+                        retries["used"] += 1
+                if ok_retry:
+                    wait_turn()
+                    try:
+                        data = merge_serpapi(data, search(api_key, o, d, date, fresh=True))
+                    except FatalApiError:
+                        raise
+                    except Exception:
+                        pass  # behold første svar
+            return data
         except FatalApiError as e:
             stop["fatal"] = e
             return e
@@ -432,6 +469,8 @@ def main():
                 n, len(jobs), o, d, date, result, args, today, observed_at,
                 currencies, ok, fails, total_rows)
 
+    if retries["used"]:
+        print(f"Gensøgte {retries['used']} afgange, hvor Google Flights manglede en pris")
     if stop["fatal"]:
         print(f"\nGemt indtil stop: {ok} søgninger OK, {total_rows} prisrækker")
         sys.exit(f"Stoppet: {stop['fatal']}\n(forkert API-nøgle, eller ingen søgninger tilbage på kontoen)")
@@ -463,8 +502,8 @@ def handle_result(n, total, o, d, date, result, args, today, observed_at,
     currencies.update(r["currency"] for r in rows if r["currency"])
     print(f"{label}: {len(rows)} direkte fly")
     if args.test:
-        for r in sorted(rows, key=lambda r: float(r["price"] or 0)):
-            print(f"     {r['price']} {r['currency']}  {r['carrier']} {r['flight_numbers']}  "
+        for r in rows:
+            print(f"     {r['price'] or 'pris ukendt'} {r['currency']}  {r['carrier']} {r['flight_numbers']}  "
                   f"afg. {r['departure_time_local'][11:16]}")
     else:
         append_csv(PRICES_FILE, PRICE_COLUMNS, rows)

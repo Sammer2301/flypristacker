@@ -4,11 +4,11 @@ Henter hver mandag kl. 07 konkurrenternes laveste priser fra Google Flights (via
 
 ## Opsætning
 
-- **Ruter (5, kun udrejse):** CPH–CHQ, CPH–LCA, CPH–PMI, BLL–CHQ, BLL–PMI
+- **Ruter (4, kun udrejse):** CPH–CHQ, CPH–LCA, CPH–PMI, BLL–PMI (BLL–CHQ og BLL–LCA er fjernet: ingen direkte rutefly)
 - **Afgange:** torsdage og lørdage i uge 18–39 2027 (6. maj – 2. oktober 2027), 44 per rute
 - **Søgning:** 1 voksen, one-way, economy, kun direkte fly, ingen selvtransfer, dansk marked, priser i DKK, laveste pris uden krav om bagage
-- **Omfang:** 220 søgninger per kørsel, ca. 950 om måneden. Passer i SerpApi Starter ($25/md., 1.000 søgninger, 200 i timen). Scriptet holder sig under 190 søgninger i timen, så en kørsel tager ca. 70 minutter.
-- **Data:** `data/prices_google.csv`.
+- **Omfang:** 176 søgninger per kørsel plus højst 30 gensøgninger, når Google Flights mangler en pris. Højst ca. 890 om måneden. Passer i SerpApi Starter ($25/md., 1.000 søgninger, 200 i timen). Scriptet holder sig under 190 søgninger i timen, så en kørsel tager ca. 1 time.
+- **Data:** `data/prices_google.csv`. Fly uden pris gemmes med tom pris og `price_status = unavailable`.
 
 Søgedefinitionen ligger fast i toppen af `fetch_prices.py`. Ændres den undervejs, kan nye og gamle priser ikke sammenlignes.
 
@@ -33,7 +33,7 @@ Søgedefinitionen ligger fast i toppen af `fetch_prices.py`. Ændres den underve
 Fanen *Actions* → *Ugentlig prishentning* → *Run workflow* → vælg:
 
 - **test** – 2 søgninger. Priserne vises i loggen, men **intet gemmes**. Brug den til at tjekke, at alt virker.
-- **fuld** – rigtig kørsel med alle 220 søgninger. Gemmes i `data/prices_google.csv`.
+- **fuld** – rigtig kørsel med alle 176 søgninger. Gemmes i `data/prices_google.csv`.
 
 Herefter kører den selv hver mandag kl. 07 dansk tid.
 
