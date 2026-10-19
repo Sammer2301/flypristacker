@@ -3,12 +3,16 @@
 Flypris-overvågning: henter konkurrentpriser for faste ruter og afgangsdage.
 
 Læser ruterne fra routes.csv, omsætter ISO-uger + ugedage til konkrete
-afgangsdatoer, søger hver dato hos Ignav og tilføjer resultatet til
-data/prices.csv. Hver kørsel lægger nye rækker til, så historikken bevares.
+afgangsdatoer, søger hver dato og tilføjer resultatet til en CSV-fil i data/.
+Hver kørsel lægger nye rækker til, så historikken bevares.
+
+Datakilde (miljøvariablen PROVIDER):
+  serpapi  Google Flights via SerpApi (standard)  -> data/prices_google.csv
+  ignav    Ignav                                  -> data/prices.csv
 
 Søgningen er fast defineret, så priserne kan sammenlignes over tid:
-  1 voksen, one-way, economy, kun direkte fly, ingen selvtransfer,
-  dansk marked (priser i DKK), laveste pris uden krav om bagage.
+  1 voksen, one-way, economy, kun direkte fly, dansk marked (priser i DKK),
+  laveste pris uden krav om bagage.
 
 Kræver kun Python 3.9+ (ingen ekstra pakker).
 
@@ -17,8 +21,8 @@ Brug:
     python fetch_prices.py --test 2       # 2 rigtige søgninger, vises på skærmen, GEMMES IKKE
     python fetch_prices.py                # fuld kørsel, gemmes i data/prices.csv
 
-API-nøglen læses fra miljøvariablen IGNAV_API_KEY eller fra filen api_key.txt
-ved siden af scriptet.
+API-nøglen læses fra SERPAPI_API_KEY (eller IGNAV_API_KEY) eller fra filen
+api_key.txt ved siden af scriptet.
 """
 
 import argparse
@@ -29,8 +33,19 @@ import os
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
+# Vis fremgang løbende i GitHub-loggen (ellers kommer al tekst først til sidst)
+try:
+    sys.stdout.reconfigure(line_buffering=True)
+except Exception:
+    pass
+
+# Antal søgninger der kører samtidig. 4 giver ca. 4x hurtigere kørsel.
+WORKERS = 4
 
 try:
     from zoneinfo import ZoneInfo
@@ -38,23 +53,53 @@ try:
 except Exception:  # fx Windows uden tzdata
     LOCAL_TZ = None
 
-API_URL = "https://ignav.com/api/fares/one-way"
+# Datakilde: "serpapi" (Google Flights, standard) eller "ignav".
+# Kan overstyres med miljøvariablen PROVIDER.
+PROVIDER = os.environ.get("PROVIDER", "serpapi").strip().lower()
 
-# Fast søgedefinition – ændres den, kan nye og gamle priser ikke sammenlignes.
-SEARCH_SETTINGS = {
-    "adults": 1,
-    "cabin_class": "economy",
-    "max_stops": 0,               # kun direkte fly
-    "allow_self_transfer": False,  # kun rigtige tilbud fra ét selskab
-    "market": "DK",               # dansk kunde, priser i DKK
+# Fast søgedefinition – ændres den, kan nye og gamle priser ikke sammenlignes:
+#   1 voksen, one-way, economy, kun direkte fly, dansk marked, priser i DKK.
+PROVIDERS = {
+    "serpapi": {
+        "key_env": "SERPAPI_API_KEY",
+        "url": "https://serpapi.com/search.json",
+        "params": {
+            "engine": "google_flights",
+            "type": "2",            # one-way
+            "adults": "1",
+            "travel_class": "1",    # economy
+            "stops": "1",           # kun direkte fly
+            "currency": "DKK",
+            "gl": "dk",             # dansk marked
+            "hl": "da",
+            "deep_search": "true",  # samme resultater som Google Flights i browseren
+            "show_hidden": "true",  # medtag også "flere fly"
+        },
+        "file": "prices_google.csv",
+    },
+    "ignav": {
+        "key_env": "IGNAV_API_KEY",
+        "url": "https://ignav.com/api/fares/one-way",
+        "params": {
+            "adults": 1,
+            "cabin_class": "economy",
+            "max_stops": 0,
+            "allow_self_transfer": False,
+            "market": "DK",
+        },
+        "file": "prices.csv",
+    },
 }
+if PROVIDER not in PROVIDERS:
+    sys.exit(f"Ukendt PROVIDER '{PROVIDER}'. Brug 'serpapi' eller 'ignav'.")
+SEARCH_SETTINGS = PROVIDERS[PROVIDER]["params"]
 EXPECTED_CURRENCY = "DKK"
 SCHEDULED_HOUR = 7  # lokal tid (København) for den ugentlige kørsel
 
 HERE = Path(__file__).resolve().parent
 ROUTES_FILE = HERE / "routes.csv"
 DATA_DIR = HERE / "data"
-PRICES_FILE = DATA_DIR / "prices.csv"
+PRICES_FILE = DATA_DIR / PROVIDERS[PROVIDER]["file"]
 ERRORS_FILE = DATA_DIR / "errors.csv"
 
 WEEKDAYS = {
@@ -85,13 +130,18 @@ class FatalApiError(Exception):
     pass
 
 
+class NotSearchableYet(Exception):
+    pass
+
+
 def now_local():
     now = dt.datetime.now(dt.timezone.utc)
     return now.astimezone(LOCAL_TZ) if LOCAL_TZ else now
 
 
 def load_api_key():
-    key = os.environ.get("IGNAV_API_KEY", "").strip()
+    env_name = PROVIDERS[PROVIDER]["key_env"]
+    key = os.environ.get(env_name, "").strip()
     if not key:
         key_file = HERE / "api_key.txt"
         if key_file.exists():
@@ -143,37 +193,74 @@ def load_routes():
     return routes
 
 
-def search(api_key, origin, destination, date, retries=4):
-    body = json.dumps({
-        "origin": origin,
-        "destination": destination,
-        "departure_date": date.isoformat(),
-        **SEARCH_SETTINGS,
-    }).encode("utf-8")
-    req = urllib.request.Request(
-        API_URL, data=body, method="POST",
-        headers={"X-Api-Key": api_key, "Content-Type": "application/json",
-                 "Accept": "application/json"},
-    )
+def _http(req, retries=4):
+    """Kald API'et. Prøver igen ved midlertidige fejl, stopper ved fatale."""
     last_err = None
     for attempt in range(1, retries + 1):
         try:
-            with urllib.request.urlopen(req, timeout=90) as resp:
+            with urllib.request.urlopen(req, timeout=120) as resp:
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             detail = e.read().decode("utf-8", "replace")[:300]
             last_err = f"HTTP {e.code}: {detail}"
-            if e.code in FATAL_CODES:
+            low = detail.lower()
+            if e.code in FATAL_CODES or "run out of searches" in low or "invalid api key" in low:
                 raise FatalApiError(last_err)
+            if "unsupported_search" in low:
+                # Datoen ligger for langt ude (salget er ikke åbnet endnu).
+                raise NotSearchableYet("uden for søgbar periode endnu")
             if e.code not in RETRY_CODES:
                 break  # fx 400: forkert forespørgsel, nytter ikke at prøve igen
         except Exception as e:  # netværk, timeout
             last_err = str(e)
-        time.sleep(5 * attempt)
+        time.sleep(10 * attempt)
     raise RuntimeError(last_err)
 
 
+def search(api_key, origin, destination, date):
+    cfg = PROVIDERS[PROVIDER]
+    if PROVIDER == "serpapi":
+        q = dict(cfg["params"], departure_id=origin, arrival_id=destination,
+                 outbound_date=date.isoformat(), api_key=api_key)
+        req = urllib.request.Request(cfg["url"] + "?" + urllib.parse.urlencode(q),
+                                     headers={"Accept": "application/json"})
+        data = _http(req)
+        err = data.get("error")
+        if err:
+            low = err.lower()
+            if "hasn't returned any results" in low or "no results" in low:
+                return {"itineraries": []}  # ingen direkte fly den dag
+            if "run out of searches" in low or "invalid api key" in low:
+                raise FatalApiError(err)
+            if "outbound_date" in low or "date" in low and ("future" in low or "far" in low or "range" in low):
+                raise NotSearchableYet("uden for søgbar periode endnu")
+            raise RuntimeError(err)
+        return data
+    body = json.dumps({"origin": origin, "destination": destination,
+                       "departure_date": date.isoformat(), **cfg["params"]}).encode("utf-8")
+    req = urllib.request.Request(cfg["url"], data=body, method="POST",
+                                 headers={"X-Api-Key": api_key, "Content-Type": "application/json",
+                                          "Accept": "application/json"})
+    return _http(req)
+
+
+def _base_row(origin, destination, date, today, observed_at):
+    return {
+        "observed_at": observed_at,
+        "search_date": today.isoformat(),
+        "route": f"{origin}-{destination}",
+        "origin": origin,
+        "destination": destination,
+        "departure_date": date.isoformat(),
+        "departure_week": date.isocalendar()[1],
+        "departure_weekday": date.strftime("%a"),
+        "days_to_departure": (date - today).days,
+    }
+
+
 def parse_itineraries(data, origin, destination, date, today, observed_at):
+    if PROVIDER == "serpapi":
+        return _parse_serpapi(data, origin, destination, date, today, observed_at)
     rows = []
     for it in data.get("itineraries") or []:
         out = it.get("outbound") or {}
@@ -181,15 +268,7 @@ def parse_itineraries(data, origin, destination, date, today, observed_at):
         price = it.get("price") or {}
         carriers = sorted({s.get("marketing_carrier_code") or "" for s in segs} - {""})
         rows.append({
-            "observed_at": data.get("observed_at") or observed_at,
-            "search_date": today.isoformat(),
-            "route": f"{origin}-{destination}",
-            "origin": origin,
-            "destination": destination,
-            "departure_date": date.isoformat(),
-            "departure_week": date.isocalendar()[1],
-            "departure_weekday": date.strftime("%a"),
-            "days_to_departure": (date - today).days,
+            **_base_row(origin, destination, date, today, data.get("observed_at") or observed_at),
             "carrier": out.get("carrier") or (segs[0].get("operating_carrier_name") if segs else ""),
             "carrier_codes": "/".join(carriers),
             "flight_numbers": " + ".join(
@@ -206,6 +285,40 @@ def parse_itineraries(data, origin, destination, date, today, observed_at):
         })
     return rows
 
+
+def _gf_time(s):
+    # Google Flights: "2027-06-19 08:10" -> "2027-06-19T08:10:00"
+    return (s.replace(" ", "T") + ":00") if s and len(s) == 16 else (s or "")
+
+
+def _parse_serpapi(data, origin, destination, date, today, observed_at):
+    best = {}
+    for it in (data.get("best_flights") or []) + (data.get("other_flights") or []):
+        segs = it.get("flights") or []
+        price = it.get("price")
+        if not segs or price is None or it.get("layovers"):
+            continue  # kun direkte fly med en pris
+        fnums = [(s.get("flight_number") or "").replace(" ", "") for s in segs]
+        codes = sorted({(s.get("flight_number") or "").split(" ")[0] for s in segs} - {""})
+        row = {
+            **_base_row(origin, destination, date, today, observed_at),
+            "carrier": segs[0].get("airline", ""),
+            "carrier_codes": "/".join(codes),
+            "flight_numbers": " + ".join(fnums),
+            "stops": len(segs) - 1,
+            "departure_time_local": _gf_time((segs[0].get("departure_airport") or {}).get("time")),
+            "arrival_time_local": _gf_time((segs[-1].get("arrival_airport") or {}).get("time")),
+            "duration_minutes": it.get("total_duration", ""),
+            "price": price,
+            "currency": SEARCH_SETTINGS["currency"],
+            "price_status": "",
+            "cabin_class": "economy",
+            "self_transfer": False,
+        }
+        key = row["flight_numbers"]
+        if key not in best or float(price) < float(best[key]["price"]):
+            best[key] = row  # samme fly kan optræde flere gange; behold laveste pris
+    return sorted(best.values(), key=lambda r: float(r["price"]))
 
 def append_csv(path, columns, rows):
     if not rows:
@@ -253,7 +366,7 @@ def main():
         jobs = jobs[: args.test]
 
     print(f"{len(routes)} rute(r), {len(jobs)} søgninger i denne kørsel")
-    print(f"Søgning: {json.dumps(SEARCH_SETTINGS, ensure_ascii=False)}")
+    print(f"Datakilde: {PROVIDER}  Søgning: {json.dumps(SEARCH_SETTINGS, ensure_ascii=False)}")
     for r in routes:
         ds = [d for d in r["dates"] if d > today]
         if ds:
@@ -268,36 +381,41 @@ def main():
 
     api_key = load_api_key()
     if not api_key:
-        sys.exit("Mangler API-nøgle: sæt IGNAV_API_KEY eller læg nøglen i api_key.txt")
+        sys.exit(f"Mangler API-nøgle: sæt {PROVIDERS[PROVIDER]['key_env']} eller læg nøglen i api_key.txt")
 
     observed_at = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
     ok = fails = total_rows = 0
     currencies = set()
-    for n, (o, d, date) in enumerate(jobs, start=1):
+    stop = {"fatal": None}
+
+    def run_one(job):
+        o, d, date = job
+        if stop["fatal"]:
+            return None
         try:
-            data = search(api_key, o, d, date)
-            rows = parse_itineraries(data, o, d, date, today, observed_at)
-            currencies.update(r["currency"] for r in rows if r["currency"])
-            total_rows += len(rows)
-            ok += 1
-            if args.test:
-                print(f"[{n}/{len(jobs)}] {o}-{d} {date}: {len(rows)} direkte fly")
-                for r in sorted(rows, key=lambda r: float(r["price"] or 0)):
-                    print(f"     {r['price']} {r['currency']}  {r['carrier']} {r['flight_numbers']}  "
-                          f"afg. {r['departure_time_local'][11:16]}")
-            else:
-                append_csv(PRICES_FILE, PRICE_COLUMNS, rows)
-                print(f"[{n}/{len(jobs)}] {o}-{d} {date}: {len(rows)} direkte fly")
+            return search(api_key, o, d, date)
         except FatalApiError as e:
-            sys.exit(f"Stoppet: {e}\n(401/403 = forkert API-nøgle, 402 = ingen søgninger tilbage på kontoen)")
+            stop["fatal"] = e
+            return e
         except Exception as e:
-            fails += 1
-            if not args.test:
-                append_csv(ERRORS_FILE, ["observed_at", "route", "departure_date", "error"],
-                           [{"observed_at": observed_at, "route": f"{o}-{d}",
-                             "departure_date": date.isoformat(), "error": str(e)}])
-            print(f"[{n}/{len(jobs)}] {o}-{d} {date}: FEJL {e}")
-        time.sleep(0.5)
+            return e
+
+    # Søgningerne kører parallelt, men resultaterne gemmes i fast rækkefølge
+    with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+        results = pool.map(run_one, jobs)
+        for n, ((o, d, date), result) in enumerate(zip(jobs, results), start=1):
+            if stop["fatal"]:
+                pool.shutdown(wait=False, cancel_futures=True)
+                break
+            if result is None:
+                continue
+            ok, fails, total_rows = handle_result(
+                n, len(jobs), o, d, date, result, args, today, observed_at,
+                currencies, ok, fails, total_rows)
+
+    if stop["fatal"]:
+        print(f"\nGemt indtil stop: {ok} søgninger OK, {total_rows} prisrækker")
+        sys.exit(f"Stoppet: {stop['fatal']}\n(forkert API-nøgle, eller ingen søgninger tilbage på kontoen)")
 
     where = "intet gemt (test)" if args.test else f"gemt i {PRICES_FILE.relative_to(HERE)}"
     print(f"\nFærdig: {ok} søgninger OK, {fails} fejl, {total_rows} prisrækker, {where}")
@@ -305,6 +423,33 @@ def main():
         print(f"ADVARSEL: priser kom i {', '.join(sorted(currencies))}, forventet {EXPECTED_CURRENCY}")
     if jobs and not ok:
         sys.exit(1)
+
+
+def handle_result(n, total, o, d, date, result, args, today, observed_at,
+                  currencies, ok, fails, total_rows):
+    """Gem (eller vis) resultatet af én søgning. Returnerer opdaterede tællere."""
+    label = f"[{n}/{total}] {o}-{d} {date}"
+    if isinstance(result, NotSearchableYet):
+        print(f"{label}: springes over ({result})")
+        return ok, fails, total_rows
+    if isinstance(result, Exception):
+        if not args.test:
+            append_csv(ERRORS_FILE, ["observed_at", "route", "departure_date", "error"],
+                       [{"observed_at": observed_at, "route": f"{o}-{d}",
+                         "departure_date": date.isoformat(), "error": str(result)}])
+        print(f"{label}: FEJL {result}")
+        return ok, fails + 1, total_rows
+
+    rows = parse_itineraries(result, o, d, date, today, observed_at)
+    currencies.update(r["currency"] for r in rows if r["currency"])
+    print(f"{label}: {len(rows)} direkte fly")
+    if args.test:
+        for r in sorted(rows, key=lambda r: float(r["price"] or 0)):
+            print(f"     {r['price']} {r['currency']}  {r['carrier']} {r['flight_numbers']}  "
+                  f"afg. {r['departure_time_local'][11:16]}")
+    else:
+        append_csv(PRICES_FILE, PRICE_COLUMNS, rows)
+    return ok + 1, fails, total_rows + len(rows)
 
 
 if __name__ == "__main__":

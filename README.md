@@ -1,13 +1,14 @@
 # Flypris-overvågning – proof of concept
 
-Henter hver mandag kl. 07 konkurrenternes laveste priser for faste ruter og afgangsdage og gemmer dem, så I kan følge prisudviklingen frem mod afgang.
+Henter hver mandag kl. 07 konkurrenternes laveste priser fra Google Flights (via SerpApi) for faste ruter og afgangsdage og gemmer dem, så I kan følge prisudviklingen frem mod afgang.
 
 ## Opsætning
 
 - **Ruter (6, kun udrejse):** CPH–CHQ, CPH–LCA, CPH–PMI, BLL–CHQ, BLL–LCA, BLL–PMI
 - **Afgange:** lørdage i uge 18–43 2027 (8. maj – 30. oktober 2027), 26 per rute
 - **Søgning:** 1 voksen, one-way, economy, kun direkte fly, ingen selvtransfer, dansk marked, priser i DKK, laveste pris uden krav om bagage
-- **Omfang:** 156 søgninger per kørsel. De 1.000 gratis søgninger hos Ignav dækker de første 6 kørsler, derefter ca. $0,31 per kørsel.
+- **Omfang:** 156 søgninger per kørsel, ca. 680 om måneden. Kræver SerpApi Starter ($25/md., 1.000 søgninger). Gratisplanen (250/md., 50 i timen) rækker kun til test.
+- **Data:** `data/prices_google.csv`. De første Ignav-data fra 19. okt. 2026 ligger i `data/prices.csv` og bruges ikke længere (Ignav manglede bl.a. SAS).
 
 Søgedefinitionen ligger fast i toppen af `fetch_prices.py`. Ændres den undervejs, kan nye og gamle priser ikke sammenlignes.
 
@@ -17,7 +18,7 @@ Søgedefinitionen ligger fast i toppen af `fetch_prices.py`. Ændres den underve
 |---|---|
 | `routes.csv` | Ruterne. Én linje per rute. |
 | `fetch_prices.py` | Henter priserne og gemmer dem. |
-| `data/prices.csv` | Historikken. Én række per fly per søgning. Oprettes ved første fulde kørsel. |
+| `data/prices_google.csv` | Historikken. Én række per fly per søgning. Oprettes ved første fulde kørsel. |
 | `data/errors.csv` | Søgninger der fejlede (oprettes kun hvis noget fejler). |
 | `.github/workflows/weekly.yml` | Kører det automatisk hver mandag kl. 07 via GitHub. |
 
@@ -25,14 +26,14 @@ Søgedefinitionen ligger fast i toppen af `fetch_prices.py`. Ændres den underve
 
 1. Opret et **privat** repository, fx `flypris`.
 2. Upload alle filerne inkl. mappen `.github`. Upload **ikke** `api_key.txt`.
-3. *Settings → Secrets and variables → Actions → New repository secret*: navn `IGNAV_API_KEY`, værdi = din nøgle.
+3. *Settings → Secrets and variables → Actions → New repository secret*: navn `SERPAPI_API_KEY`, værdi = din nøgle fra serpapi.com.
 
 ## Kørsel
 
 Fanen *Actions* → *Ugentlig prishentning* → *Run workflow* → vælg:
 
 - **test** – 2 søgninger. Priserne vises i loggen, men **intet gemmes**. Brug den til at tjekke, at alt virker.
-- **fuld** – rigtig kørsel med alle 156 søgninger. Gemmes i `data/prices.csv`.
+- **fuld** – rigtig kørsel med alle 156 søgninger. Gemmes i `data/prices_google.csv`.
 
 Herefter kører den selv hver mandag kl. 07 dansk tid.
 
