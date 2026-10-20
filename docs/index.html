@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<style>html{-webkit-text-size-adjust:100%}body{margin:0;font-size:14px;font-family:system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+</head>
+<body>
+<title>Competitor Prices 2027</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: brand-blue page, dropdown filters in one row, one wide line chart (week × price), carrier key under the chart, table view below.
+   Single deliberate theme in Jet Time colours: blue ground, white chart lines, orange accent, grey secondary. */
+:root {
+  color-scheme: dark;
+  --bg: #0550a0;          /* Jet Time blå */
+  --panel: #04458c;       /* lidt dybere blå til kort */
+  --panel-2: #033a77;     /* felter, tooltip */
+  --fg: #ffffff;
+  --muted: #c9d6ea;
+  --faint: #93a9c9;
+  --grey: #a7a8ab;        /* Jet Time grå */
+  --line: rgba(255,255,255,.22);
+  --grid: rgba(255,255,255,.14);
+  --accent: #ffa000;      /* Jet Time orange */
+  --sas: #ffffff;
+  --dy: #ffa000;
+  --fr: #6fe3b6;
+  --other: #a7a8ab;
+  --font-display: "Barlow Semi Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Barlow", "Helvetica Neue", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45; }
+.wrap { max-width: 1100px; margin: 0 auto; padding-block: 28px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 18px; }
+header { display: grid; gap: 6px; }
+h1 { font-family: var(--font-body); font-style: italic; font-weight: 700; font-size: 2.1rem; letter-spacing: -.01em; margin: 0; text-wrap: balance; }
+h1 em { font-style: italic; color: var(--accent); }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: 1.25rem; margin: 0; }
+.sub { color: var(--muted); margin: 0; max-width: 72ch; }
+.filters { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end; }
+.push-right { margin-left: auto; }
+@media (max-width: 560px) { .push-right { margin-left: 0; } }
+.field { display: grid; gap: 4px; min-width: 150px; }
+.lbl { font-family: var(--font-display); font-size: .76rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+select { width: 100%; font: 600 1rem var(--font-display); letter-spacing: .02em; padding: 8px 36px 8px 12px; border: 1px solid var(--line); border-radius: 8px; background-color: var(--panel-2); color: var(--fg); appearance: none; -webkit-appearance: none; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--accent) 50%), linear-gradient(135deg, var(--accent) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 55%, calc(100% - 13px) 55%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+select:hover { border-color: var(--accent); }
+select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+option { background: var(--panel-2); color: var(--fg); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 18px 14px; display: grid; gap: 12px; min-width: 0; }
+.chartbox { position: relative; width: 100%; min-width: 0; }
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+.axis text { font: 500 12px var(--font-body); fill: var(--muted); font-variant-numeric: tabular-nums; }
+.axis .title { font: 600 11px var(--font-display); letter-spacing: .1em; text-transform: uppercase; fill: var(--faint); }
+.legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 22px; padding-top: 10px; border-top: 1px solid var(--grid); font: 600 .95rem var(--font-display); letter-spacing: .02em; }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.legend svg { width: 26px; height: 12px; }
+.tip { position: absolute; pointer-events: none; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: .86rem; box-shadow: 0 6px 20px rgba(0,0,0,.3); min-width: 180px; z-index: 2; }
+.tip b { font-family: var(--font-display); font-size: .98rem; }
+.tip .r { display: flex; align-items: center; gap: 8px; justify-content: space-between; font-variant-numeric: tabular-nums; }
+.tip .r span:first-child { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+.tip .none { color: var(--faint); }
+.empty { padding: 48px 12px; text-align: center; color: var(--muted); }
+.tablebox { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 520px; font-variant-numeric: tabular-nums; }
+th { font: 600 .76rem var(--font-display); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th.num, td.num { text-align: right; }
+td { padding: 7px 12px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+tbody tr:last-child td { border-bottom: 0; }
+td.wk { font: 700 1rem var(--font-display); }
+td.date { color: var(--muted); }
+td .price { font: 700 1rem var(--font-display); }
+td .fl { color: var(--faint); font-size: .82rem; margin-left: 6px; }
+#table th.air, #table td.air { text-align: center; }
+#table td.air .price { font-weight: 600; }
+#table td.air .fl { display: block; margin: 1px 0 0; font-size: .76rem; }
+#table td.cheap .price { color: var(--accent); font-weight: 700; }
+td.na { color: var(--faint); font-style: italic; }
+.mk { display: inline-block; font: 700 .66rem var(--font-display); letter-spacing: .08em; color: var(--bg); background: var(--grey); border-radius: 3px; padding: 0 4px; margin-left: 5px; vertical-align: 2px; }
+.notes { font-size: .88rem; color: var(--muted); display: grid; gap: 4px; max-width: 78ch; }
+.notes p { margin: 0; }
+.notes strong { color: var(--fg); }
+.tabs { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; justify-self: start; max-width: 100%; }
+.tab { font: 700 1.02rem var(--font-display); letter-spacing: .02em; color: var(--muted); background: transparent; border: 0; border-radius: 9px; padding: 9px 18px; cursor: pointer; transition: background .15s, color .15s; }
+.tab:hover { color: var(--fg); background: rgba(255,255,255,.08); }
+.tab[aria-selected="true"] { color: var(--fg); background: rgba(255,255,255,.14); box-shadow: inset 0 -2px 0 var(--accent); }
+.tab:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.panel { display: grid; gap: 18px; }
+.panel[hidden] { display: none; }
+.ms { position: relative; }
+.ms > summary { list-style: none; font: 600 1rem var(--font-display); letter-spacing: .02em; padding: 8px 36px 8px 12px; border: 1px solid var(--line); border-radius: 8px; background-color: var(--panel-2); color: var(--fg); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background-image: linear-gradient(45deg, transparent 50%, var(--accent) 50%), linear-gradient(135deg, var(--accent) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 55%, calc(100% - 13px) 55%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+.ms > summary::-webkit-details-marker { display: none; }
+.ms > summary:hover { border-color: var(--accent); }
+.ms > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ms .menu { position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; min-width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px; box-shadow: 0 8px 24px rgba(0,0,0,.35); display: grid; gap: 2px; }
+.ms label { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font: 600 .95rem var(--font-display); white-space: nowrap; }
+.ms label:hover { background: rgba(255,255,255,.08); }
+.ms input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+.ms .all { border-bottom: 1px solid var(--grid); margin-bottom: 2px; padding-bottom: 8px; color: var(--muted); }
+.legend .ls svg { width: 34px; }
+.callout { background: var(--panel-2); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 8px; padding: 10px 14px; color: var(--muted); font-size: .9rem; max-width: 80ch; }
+.callout strong { color: var(--fg); }
+.toggle { display: inline-flex; align-items: center; gap: 9px; font: 600 .95rem var(--font-display); letter-spacing: .02em; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); cursor: pointer; align-self: end; }
+.toggle input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+.simtag { display: inline-block; font: 700 .64rem var(--font-display); letter-spacing: .08em; color: var(--bg); background: var(--accent); border-radius: 3px; padding: 0 4px; vertical-align: 2px; }
+#bTable th.air, #bTable td.air { text-align: center; }
+#bTable td.air .price { font-weight: 600; }
+#bTable td.sim .price { color: var(--faint); font-weight: 500; }
+#bTable .sketch-row td { border-top: 1px dashed var(--accent); }
+@media (max-width: 560px) { h1 { font-size: 1.6rem; } .card { padding: 14px 12px 12px; } .field { flex: 1 1 140px; } .tabs { display: flex; } .tab { flex: 1 1 auto; padding: 9px 12px; font-size: .95rem; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Competitor Prices <em>2027</em></h1>
+    <p class="sub">Lowest fare for direct flights, 1 adult one-way in DKK, from Google Flights. Latest update <strong id="latestLabel"></strong>.</p>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Reports">
+    <button class="tab" role="tab" id="tab-a" aria-controls="panel-a" aria-selected="true">Weekly Prices Now</button>
+    <button class="tab" role="tab" id="tab-b" aria-controls="panel-b" aria-selected="false">Price Development</button>
+  </div>
+
+  <div class="panel" id="panel-a" role="tabpanel" aria-labelledby="tab-a">
+  <div class="filters">
+    <div class="field"><label class="lbl" for="route">Route</label><select id="route"></select></div>
+    <div class="field"><label class="lbl" for="day">Weekday</label><select id="day"></select></div>
+    <div class="field push-right"><label class="lbl" for="snap">Version</label><select id="snap"></select></div>
+  </div>
+
+  <section class="card" aria-labelledby="chartTitle">
+    <h2 id="chartTitle"></h2>
+    <div class="chartbox" id="chartbox"></div>
+    <div class="legend" id="legend" aria-label="Airlines"></div>
+  </section>
+
+  <section class="card" aria-labelledby="tableTitle">
+    <h2 id="tableTitle">Prices per week</h2>
+    <div class="tablebox"><table id="table"></table></div>
+  </section>
+  </div>
+
+  <div class="panel" id="panel-b" role="tabpanel" aria-labelledby="tab-b" hidden>
+    <div class="filters">
+      <div class="field"><span class="lbl" id="bCarLbl">Airline</span><details class="ms" id="bCar"><summary aria-labelledby="bCarLbl"></summary><div class="menu"></div></details></div>
+      <div class="field"><span class="lbl" id="bRouteLbl">Route</span><details class="ms" id="bRoute"><summary aria-labelledby="bRouteLbl"></summary><div class="menu"></div></details></div>
+      <div class="field"><label class="lbl" for="bDay">Weekday</label><select id="bDay"></select></div>
+    </div>
+    <section class="card" aria-labelledby="bTitle">
+      <h2 id="bTitle"></h2>
+      <div class="chartbox" id="bChart"></div>
+      <div class="legend" id="bLegend" aria-label="Lines"></div>
+    </section>
+    <section class="card" aria-labelledby="bTableTitle">
+      <h2 id="bTableTitle">Fares per update week</h2>
+      <div class="tablebox"><table id="bTable"></table></div>
+    </section>
+    <div class="callout" id="bNote"></div>
+  </div>
+
+  <div class="notes">
+    <p>The cheapest fare each week is shown in orange in the Weekly Prices Now table.</p>
+    <p><strong>No direct flights</strong> means Google Flights showed no direct scheduled flights that day. Charter airlines that only sell package holidays are not included.</p>
+    <p>Fares tagged <span class="mk" style="margin:0">NO</span> or <span class="mk" style="margin:0">SE</span> were retrieved as a Norwegian or Swedish customer (still in DKK) because Google Flights gave no fare in the Danish market. This mostly affects SAS.</p>
+    <p><strong>Fare unknown</strong> means the airline operates that day, but Google Flights could not return a fare at the time of the update.</p>
+    <p><strong>Not on sale yet</strong> means the departure is too far ahead to be searched. It will be picked up by a later weekly update.</p>
+  </div>
+</div>
+
+<script>
+const DATA = {"rows":[["2026-10-19","CPH-CHQ","2027-05-06","SAS","SK2819","16:55","21:30",1895,""],["2026-10-19","CPH-CHQ","2027-05-08","Norwegian","D83352","15:10","19:40",1199,""],["2026-10-19","CPH-CHQ","2027-05-08","SAS","SK2819","14:25","19:00",1583,""],["2026-10-19","CPH-CHQ","2027-05-13","SAS","SK2819","16:55","21:30",1205,""],["2026-10-19","CPH-CHQ","2027-05-15","Norwegian","D83352","15:10","19:40",1299,""],["2026-10-19","CPH-CHQ","2027-05-15","SAS","SK2819","14:25","19:00",1428,""],["2026-10-19","CPH-CHQ","2027-05-20","SAS","SK2819","16:55","21:30",1793,""],["2026-10-19","CPH-CHQ","2027-05-22","Norwegian","D83352","15:10","19:40",1299,""],["2026-10-19","CPH-CHQ","2027-05-22","SAS","SK2819","14:25","19:00",1793,""],["2026-10-19","CPH-CHQ","2027-05-27","SAS","SK2819","16:55","21:30",1151,""],["2026-10-19","CPH-CHQ","2027-05-29","Norwegian","D83352","15:10","19:40",1399,""],["2026-10-19","CPH-CHQ","2027-05-29","SAS","SK2819","14:25","19:00",1666,""],["2026-10-19","CPH-CHQ","2027-06-03","Norwegian","D83354","21:20","01:50",679,""],["2026-10-19","CPH-CHQ","2027-06-03","SAS","SK2819","16:55","21:30",1816,""],["2026-10-19","CPH-CHQ","2027-06-05","Norwegian","D83352","15:10","19:40",1599,""],["2026-10-19","CPH-CHQ","2027-06-10","Norwegian","D83354","21:20","01:50",879,""],["2026-10-19","CPH-CHQ","2027-06-10","SAS","SK2819","16:55","21:30",1799,""],["2026-10-19","CPH-CHQ","2027-06-12","Norwegian","D83352","15:10","19:40",1899,""],["2026-10-19","CPH-CHQ","2027-06-12","SAS","SK2819","14:25","19:00",3015,""],["2026-10-19","CPH-CHQ","2027-06-17","Norwegian","D83354","22:45","03:15",879,""],["2026-10-19","CPH-CHQ","2027-06-19","Norwegian","D83352","15:10","19:40",1699,""],["2026-10-19","CPH-CHQ","2027-06-19","SAS","SK2817","08:10","12:45",2899,""],["2026-10-19","CPH-CHQ","2027-06-19","SAS","SK2819","15:20","19:55",2899,""],["2026-10-19","CPH-CHQ","2027-06-24","Norwegian","D83354","22:45","03:15",1149,""],["2026-10-19","CPH-CHQ","2027-06-24","SAS","SK2817","06:15","10:50",2187,""],["2026-10-19","CPH-CHQ","2027-06-26","Norwegian","D83352","15:10","19:40",1899,""],["2026-10-19","CPH-CHQ","2027-07-01","Norwegian","D83354","22:45","03:15",1299,""],["2026-10-19","CPH-CHQ","2027-07-01","SAS","SK2817","06:15","10:50",2094,""],["2026-10-19","CPH-CHQ","2027-07-01","SAS","SK2819","16:55","21:30",2094,""],["2026-10-19","CPH-CHQ","2027-07-03","Norwegian","D83352","15:10","19:40",2099,""],["2026-10-19","CPH-CHQ","2027-07-03","SAS","SK2817","08:10","12:45",2752,""],["2026-10-19","CPH-CHQ","2027-07-03","SAS","SK2819","15:20","19:55",2752,""],["2026-10-19","CPH-CHQ","2027-07-08","Norwegian","D83354","22:45","03:15",1149,""],["2026-10-19","CPH-CHQ","2027-07-08","SAS","SK2817","06:15","10:50",2094,""],["2026-10-19","CPH-CHQ","2027-07-08","SAS","SK2819","16:55","21:30",2094,""],["2026-10-19","CPH-CHQ","2027-07-10","Norwegian","D83352","15:10","19:40",2099,""],["2026-10-19","CPH-CHQ","2027-07-15","Norwegian","D83354","22:45","03:15",1299,""],["2026-10-19","CPH-CHQ","2027-07-17","Norwegian","D83352","15:10","19:40",1499,""],["2026-10-19","CPH-CHQ","2027-07-17","SAS","SK2817","08:10","12:45",1529,""],["2026-10-19","CPH-CHQ","2027-07-17","SAS","SK2819","15:20","19:55",2527,""],["2026-10-19","CPH-CHQ","2027-07-22","Norwegian","D83354","22:45","03:15",519,""],["2026-10-19","CPH-CHQ","2027-07-22","SAS","SK2819","16:55","21:30",663,""],["2026-10-19","CPH-CHQ","2027-07-22","SAS","SK2817","06:15","10:50",1529,""],["2026-10-19","CPH-CHQ","2027-07-24","SAS","SK2817","08:10","12:45",857,""],["2026-10-19","CPH-CHQ","2027-07-24","Norwegian","D83352","15:10","19:40",999,""],["2026-10-19","CPH-CHQ","2027-07-24","SAS","SK2819","15:20","19:55",1946,""],["2026-10-19","CPH-CHQ","2027-07-29","Norwegian","D83354","22:45","03:15",519,""],["2026-10-19","CPH-CHQ","2027-07-31","Norwegian","D83352","15:10","19:40",519,""],["2026-10-19","CPH-CHQ","2027-07-31","SAS","SK2817","08:10","12:45",733,""],["2026-10-19","CPH-CHQ","2027-07-31","SAS","SK2819","15:20","19:55",1909,""],["2026-10-19","CPH-CHQ","2027-08-05","SAS","SK2817","06:15","10:50",509,""],["2026-10-19","CPH-CHQ","2027-08-05","SAS","SK2819","16:55","21:30",509,""],["2026-10-19","CPH-CHQ","2027-08-05","Norwegian","D83354","22:45","03:15",519,""],["2026-10-19","CPH-CHQ","2027-08-07","Norwegian","D83352","15:10","19:40",519,""],["2026-10-19","CPH-CHQ","2027-08-07","SAS","SK2819","15:20","19:55",544,""],["2026-10-19","CPH-CHQ","2027-08-07","SAS","SK2817","08:10","12:45",740,""],["2026-10-19","CPH-CHQ","2027-08-12","SAS","SK2819","16:55","21:30",509,""],["2026-10-19","CPH-CHQ","2027-08-12","Norwegian","D83354","22:45","03:15",519,""],["2026-10-19","CPH-CHQ","2027-08-14","Norwegian","D83352","15:10","19:40",699,""],["2026-10-19","CPH-CHQ","2027-08-14","SAS","SK2819","14:25","19:00",905,""],["2026-10-19","CPH-CHQ","2027-08-19","SAS","SK2819","16:55","21:30",509,""],["2026-10-19","CPH-CHQ","2027-08-19","Norwegian","D83354","21:20","01:50",519,""],["2026-10-19","CPH-CHQ","2027-08-21","SAS","SK2819","14:25","19:00",925,""],["2026-10-19","CPH-CHQ","2027-08-21","Norwegian","D83352","15:10","19:40",949,""],["2026-10-19","CPH-CHQ","2027-08-26","SAS","SK2819","16:55","21:30",498,""],["2026-10-19","CPH-CHQ","2027-08-26","Norwegian","D83354","21:20","01:50",519,""],["2026-10-19","CPH-CHQ","2027-08-28","Norwegian","D83352","15:10","19:40",949,""],["2026-10-19","CPH-CHQ","2027-08-28","SAS","SK2819","14:25","19:00",1088,""],["2026-10-19","CPH-CHQ","2027-09-02","Norwegian","D83354","21:20","01:50",819,""],["2026-10-19","CPH-CHQ","2027-09-02","SAS","SK2819","16:55","21:30",1088,""],["2026-10-19","CPH-CHQ","2027-09-04","Norwegian","D83352","15:10","19:40",1199,""],["2026-10-19","CPH-CHQ","2027-09-09","Norwegian","D83354","21:20","01:50",679,""],["2026-10-19","CPH-CHQ","2027-09-09","SAS","SK2819","16:55","21:30",1150,""],["2026-10-19","CPH-CHQ","2027-09-11","Norwegian","D83352","15:10","19:40",1299,""],["2026-10-19","CPH-LCA","2027-05-08","Norwegian","D83390","15:50","20:45",1198,""],["2026-10-19","CPH-LCA","2027-05-15","Norwegian","D83390","15:50","20:45",1198,""],["2026-10-19","CPH-LCA","2027-05-15","SAS","SK2775","15:10","20:10",1826,""],["2026-10-19","CPH-LCA","2027-05-22","Norwegian","D83390","15:50","20:45",1798,""],["2026-10-19","CPH-LCA","2027-05-29","Norwegian","D83390","15:50","20:45",1598,""],["2026-10-19","CPH-LCA","2027-05-29","SAS","SK2775","15:10","20:10",3571,""],["2026-10-19","CPH-LCA","2027-06-05","SAS","SK2775","15:10","20:10",680,""],["2026-10-19","CPH-LCA","2027-06-05","Norwegian","D83390","15:50","20:45",1078,""],["2026-10-19","CPH-LCA","2027-06-12","Norwegian","D83390","15:50","20:45",1498,""],["2026-10-19","CPH-LCA","2027-06-12","SAS","SK2775","15:10","20:10",1540,""],["2026-10-19","CPH-LCA","2027-06-17","Norwegian","D83390","06:05","11:00",1898,""],["2026-10-19","CPH-LCA","2027-06-19","Norwegian","D83390","06:30","11:25",1698,""],["2026-10-19","CPH-LCA","2027-06-24","Norwegian","D83390","06:05","11:00",1698,""],["2026-10-19","CPH-LCA","2027-06-24","SAS","SK2775","15:55","20:55",1780,""],["2026-10-19","CPH-LCA","2027-06-26","Norwegian","D83390","06:30","11:25",2098,""],["2026-10-19","CPH-LCA","2027-07-01","Norwegian","D83390","06:05","11:00",1898,""],["2026-10-19","CPH-LCA","2027-07-01","SAS","SK2775","15:55","20:55",1966,""],["2026-10-19","CPH-LCA","2027-07-03","Norwegian","D83390","06:30","11:25",2298,""],["2026-10-19","CPH-LCA","2027-07-08","Norwegian","D83390","06:05","11:00",1698,""],["2026-10-19","CPH-LCA","2027-07-08","SAS","SK2775","15:55","20:55",1990,""],["2026-10-19","CPH-LCA","2027-07-10","Norwegian","D83390","06:30","11:25",1898,""],["2026-10-19","CPH-LCA","2027-07-10","SAS","SK2775","15:10","20:10",2071,""],["2026-10-19","CPH-LCA","2027-07-15","Norwegian","D83390","06:05","11:00",1498,""],["2026-10-19","CPH-LCA","2027-07-15","SAS","SK2775","15:55","20:55",1946,""],["2026-10-19","CPH-LCA","2027-07-17","SAS","SK2775","15:10","20:10",1990,""],["2026-10-19","CPH-LCA","2027-07-17","Norwegian","D83390","06:30","11:25",2098,""],["2026-10-19","CPH-LCA","2027-07-22","Norwegian","D83390","06:05","11:00",1148,""],["2026-10-19","CPH-LCA","2027-07-22","SAS","SK2775","15:55","20:55",1510,""],["2026-10-19","CPH-LCA","2027-07-24","Norwegian","D83390","06:30","11:25",1148,""],["2026-10-19","CPH-LCA","2027-07-29","Norwegian","D83390","06:05","11:00",698,""],["2026-10-19","CPH-LCA","2027-07-29","SAS","SK2775","15:55","20:55",1558,""],["2026-10-19","CPH-LCA","2027-07-31","Norwegian","D83390","06:30","11:25",878,""],["2026-10-19","CPH-LCA","2027-08-05","Norwegian","D83390","06:05","11:00",518,""],["2026-10-19","CPH-LCA","2027-08-05","SAS","SK2775","15:55","20:55",1428,""],["2026-10-19","CPH-LCA","2027-08-07","Norwegian","D83390","06:30","11:25",518,""],["2026-10-19","CPH-LCA","2027-08-07","SAS","SK2775","15:10","20:10",1558,""],["2026-10-19","CPH-LCA","2027-08-12","Norwegian","D83390","06:05","11:00",518,""],["2026-10-19","CPH-LCA","2027-08-14","Norwegian","D83390","06:30","11:25",698,""],["2026-10-19","CPH-LCA","2027-08-21","Norwegian","D83390","15:50","20:45",678,""],["2026-10-19","CPH-LCA","2027-08-21","SAS","SK2775","15:10","20:10",1045,""],["2026-10-19","CPH-LCA","2027-08-28","SAS","SK2775","15:10","20:10",844,""],["2026-10-19","CPH-LCA","2027-08-28","Norwegian","D83390","15:50","20:45",948,""],["2026-10-19","CPH-LCA","2027-09-04","SAS","SK2775","15:10","20:10",692,""],["2026-10-19","CPH-LCA","2027-09-04","Norwegian","D83390","15:50","20:45",948,""],["2026-10-19","CPH-LCA","2027-09-11","SAS","SK2775","15:10","20:10",922,""],["2026-10-19","CPH-LCA","2027-09-11","Norwegian","D83390","15:50","20:45",1398,""],["2026-10-19","CPH-PMI","2027-05-06","Norwegian","D83666","16:30","19:30",1399,""],["2026-10-19","CPH-PMI","2027-05-06","Norwegian","D85611","11:05","14:05",1599,""],["2026-10-19","CPH-PMI","2027-05-06","SAS","SK585","06:00","09:05",2187,""],["2026-10-19","CPH-PMI","2027-05-06","SAS","SK2811","16:00","19:05",2187,""],["2026-10-19","CPH-PMI","2027-05-08","Norwegian","D83664","06:05","09:05",679,""],["2026-10-19","CPH-PMI","2027-05-08","SAS","SK2587","16:20","19:25",918,""],["2026-10-19","CPH-PMI","2027-05-08","Ryanair","FR2881","09:30","12:30",1109,""],["2026-10-19","CPH-PMI","2027-05-08","SAS","SK585","10:20","13:25",1627,""],["2026-10-19","CPH-PMI","2027-05-08","SAS","SK2811","08:15","11:20",2233,""],["2026-10-19","CPH-PMI","2027-05-13","Norwegian","D83666","16:30","19:30",1399,""],["2026-10-19","CPH-PMI","2027-05-13","SAS","SK585","06:00","09:05",1401,""],["2026-10-19","CPH-PMI","2027-05-13","Norwegian","D85611","11:05","14:05",1799,""],["2026-10-19","CPH-PMI","2027-05-13","SAS","SK2811","16:00","19:05",2185,""],["2026-10-19","CPH-PMI","2027-05-15","SAS","SK2587","16:20","19:25",966,""],["2026-10-19","CPH-PMI","2027-05-15","Ryanair","FR2881","09:30","12:30",1009,""],["2026-10-19","CPH-PMI","2027-05-15","Norwegian","D83666","17:10","20:10",1079,""],["2026-10-19","CPH-PMI","2027-05-15","Norwegian","D83664","06:05","09:05",1199,""],["2026-10-19","CPH-PMI","2027-05-15","SAS","SK585","10:20","13:25",1603,""],["2026-10-19","CPH-PMI","2027-05-15","SAS","SK2811","08:15","11:20",2191,""],["2026-10-19","CPH-PMI","2027-05-20","SAS","SK585","06:00","09:05",1016,""],["2026-10-19","CPH-PMI","2027-05-20","Norwegian","D85611","11:05","14:05",1079,""],["2026-10-19","CPH-PMI","2027-05-20","Norwegian","D83666","16:30","19:30",1199,""],["2026-10-19","CPH-PMI","2027-05-20","SAS","SK2811","16:00","19:05",1259,""],["2026-10-19","CPH-PMI","2027-05-22","Norwegian","D83666","17:10","20:10",679,""],["2026-10-19","CPH-PMI","2027-05-22","Norwegian","D83664","06:05","09:05",1079,""],["2026-10-19","CPH-PMI","2027-05-22","Ryanair","FR2881","09:30","12:30",1449,""],["2026-10-19","CPH-PMI","2027-05-22","SAS","SK2587","16:20","19:25",1603,""],["2026-10-19","CPH-PMI","2027-05-22","SAS","SK585","10:20","13:25",2091,""],["2026-10-19","CPH-PMI","2027-05-22","SAS","SK2811","08:15","11:20",2366,""],["2026-10-19","CPH-PMI","2027-05-27","Norwegian","D83666","16:30","19:30",679,""],["2026-10-19","CPH-PMI","2027-05-27","SAS","SK2811","16:00","19:05",684,""],["2026-10-19","CPH-PMI","2027-05-27","SAS","SK585","06:00","09:05",913,""],["2026-10-19","CPH-PMI","2027-05-27","Norwegian","D85611","11:05","14:05",949,""],["2026-10-19","CPH-PMI","2027-05-29","Norwegian","D83666","17:10","20:10",679,""],["2026-10-19","CPH-PMI","2027-05-29","Ryanair","FR2881","09:30","12:30",929,""],["2026-10-19","CPH-PMI","2027-05-29","Norwegian","D83664","06:05","09:05",1079,""],["2026-10-19","CPH-PMI","2027-05-29","SAS","SK2587","16:20","19:25",1196,""],["2026-10-19","CPH-PMI","2027-05-29","SAS","SK585","10:20","13:25",1603,""],["2026-10-19","CPH-PMI","2027-05-29","SAS","SK2811","08:15","11:20",1946,""],["2026-10-19","CPH-PMI","2027-06-03","Norwegian","D83666","16:30","19:30",679,""],["2026-10-19","CPH-PMI","2027-06-03","SAS","SK2811","16:00","19:05",960,""],["2026-10-19","CPH-PMI","2027-06-03","SAS","SK585","06:00","09:05",962,""],["2026-10-19","CPH-PMI","2027-06-03","Norwegian","D85611","11:05","14:05",1079,""],["2026-10-19","CPH-PMI","2027-06-05","Norwegian","D83666","17:10","20:10",679,""],["2026-10-19","CPH-PMI","2027-06-05","Norwegian","D83664","06:05","09:05",679,""],["2026-10-19","CPH-PMI","2027-06-05","Ryanair","FR2881","09:30","12:30",829,""],["2026-10-19","CPH-PMI","2027-06-05","SAS","SK2587","16:20","19:25",1211,""],["2026-10-19","CPH-PMI","2027-06-05","SAS","SK585","10:20","13:25",1603,""],["2026-10-19","CPH-PMI","2027-06-05","SAS","SK2811","08:15","11:20",2191,""],["2026-10-19","CPH-PMI","2027-06-10","Norwegian","D83666","16:30","19:30",879,""],["2026-10-19","CPH-PMI","2027-06-10","SAS","SK585","06:00","09:05",1149,""],["2026-10-19","CPH-PMI","2027-06-10","Norwegian","D85611","11:05","14:05",1299,""],["2026-10-19","CPH-PMI","2027-06-10","SAS","SK2811","16:00","19:05",1843,""],["2026-10-19","CPH-PMI","2027-06-12","Ryanair","FR2881","09:30","12:30",890,""],["2026-10-19","CPH-PMI","2027-06-12","Norwegian","D83666","17:10","20:10",1149,""],["2026-10-19","CPH-PMI","2027-06-12","Norwegian","D83664","06:05","09:05",1499,""],["2026-10-19","CPH-PMI","2027-06-12","SAS","SK2587","16:20","19:25",1717,""],["2026-10-19","CPH-PMI","2027-06-12","SAS","SK2811","08:15","11:20",2098,""],["2026-10-19","CPH-PMI","2027-06-12","SAS","SK585","10:20","13:25",2098,""],["2026-10-19","CPH-PMI","2027-06-17","Norwegian","D85611","11:05","14:05",1399,""],["2026-10-19","CPH-PMI","2027-06-17","Norwegian","D83666","16:30","19:30",1899,""],["2026-10-19","CPH-PMI","2027-06-17","SAS","SK2811","16:00","19:05",1983,""],["2026-10-19","CPH-PMI","2027-06-17","SAS","SK585","06:00","09:05",2081,""],["2026-10-19","CPH-PMI","2027-06-19","Norwegian","D83666","17:10","20:10",1299,""],["2026-10-19","CPH-PMI","2027-06-19","Ryanair","FR2881","09:30","12:30",1329,""],["2026-10-19","CPH-PMI","2027-06-19","Norwegian","D83664","06:05","09:05",1399,""],["2026-10-19","CPH-PMI","2027-06-19","SAS","SK585","14:45","17:50",1940,""],["2026-10-19","CPH-PMI","2027-06-19","SAS","SK2587","16:20","19:25",1940,""],["2026-10-19","CPH-PMI","2027-06-19","SAS","SK2811","07:45","10:50",2648,""],["2026-10-19","CPH-PMI","2027-06-24","Norwegian","D83666","16:30","19:30",999,""],["2026-10-19","CPH-PMI","2027-06-24","Norwegian","D85611","11:05","14:05",1299,""],["2026-10-19","CPH-PMI","2027-06-26","Norwegian","D83666","17:10","20:10",1399,""],["2026-10-19","CPH-PMI","2027-06-26","Ryanair","FR2881","09:30","12:30",1449,""],["2026-10-19","CPH-PMI","2027-06-26","Norwegian","D83664","06:05","09:05",1499,""],["2026-10-19","CPH-PMI","2027-06-26","SAS","SK2587","16:20","19:25",1867,""],["2026-10-19","CPH-PMI","2027-06-26","SAS","SK585","14:45","17:50",2004,""],["2026-10-19","CPH-PMI","2027-06-26","SAS","SK2811","07:45","10:50",3216,""],["2026-10-19","CPH-PMI","2027-07-01","Norwegian","D83666","16:30","19:30",1149,""],["2026-10-19","CPH-PMI","2027-07-01","Norwegian","D85611","11:05","14:05",1699,""],["2026-10-19","CPH-PMI","2027-07-03","Norwegian","D83666","17:10","20:10",1499,""],["2026-10-19","CPH-PMI","2027-07-03","Ryanair","FR2881","09:30","12:30",1579,""],["2026-10-19","CPH-PMI","2027-07-03","Norwegian","D83664","06:05","09:05",1699,""],["2026-10-19","CPH-PMI","2027-07-03","SAS","SK2587","16:20","19:25",2051,""],["2026-10-19","CPH-PMI","2027-07-03","SAS","SK585","14:45","17:50",2051,""],["2026-10-19","CPH-PMI","2027-07-03","SAS","SK2811","07:45","10:50",3223,""],["2026-10-19","CPH-PMI","2027-07-08","Norwegian","D83666","16:30","19:30",879,""],["2026-10-19","CPH-PMI","2027-07-08","Norwegian","D85611","11:05","14:05",1399,""],["2026-10-19","CPH-PMI","2027-07-10","Norwegian","D83666","17:10","20:10",1499,""],["2026-10-19","CPH-PMI","2027-07-10","Ryanair","FR2881","09:30","12:30",1571,""],["2026-10-19","CPH-PMI","2027-07-10","Norwegian","D83664","06:05","09:05",1699,""],["2026-10-19","CPH-PMI","2027-07-10","SAS","SK2587","16:20","19:25",1849,""],["2026-10-19","CPH-PMI","2027-07-10","SAS","SK585","14:45","17:50",1940,""],["2026-10-19","CPH-PMI","2027-07-10","SAS","SK2811","07:45","10:50",3818,""],["2026-10-19","CPH-PMI","2027-07-15","Norwegian","D83666","16:30","19:30",699,""],["2026-10-19","CPH-PMI","2027-07-15","Norwegian","D85611","11:05","14:05",1299,""],["2026-10-19","CPH-PMI","2027-07-15","SAS","SK585","06:00","09:05",1349,""],["2026-10-19","CPH-PMI","2027-07-15","SAS","SK2811","16:00","19:05",1502,""],["2026-10-19","CPH-PMI","2027-07-17","Ryanair","FR2881","09:30","12:30",1109,""],["2026-10-19","CPH-PMI","2027-07-17","Norwegian","D83666","17:10","20:10",1149,""],["2026-10-19","CPH-PMI","2027-07-17","Norwegian","D83664","06:05","09:05",1299,""],["2026-10-19","CPH-PMI","2027-07-22","Norwegian","D83666","16:30","19:30",519,""],["2026-10-19","CPH-PMI","2027-07-22","Norwegian","D85611","11:05","14:05",879,""],["2026-10-19","CPH-PMI","2027-07-22","SAS","SK2811","16:00","19:05",1145,""],["2026-10-19","CPH-PMI","2027-07-22","SAS","SK585","06:00","09:05",1148,""],["2026-10-19","CPH-PMI","2027-07-24","Norwegian","D83666","17:10","20:10",519,""],["2026-10-19","CPH-PMI","2027-07-24","Norwegian","D83664","06:05","09:05",699,""],["2026-10-19","CPH-PMI","2027-07-24","Ryanair","FR2881","09:30","12:30",1001,""],["2026-10-19","CPH-PMI","2027-07-29","SAS","SK585","06:00","09:05",517,""],["2026-10-19","CPH-PMI","2027-07-29","SAS","SK2811","16:00","19:05",517,""],["2026-10-19","CPH-PMI","2027-07-29","Norwegian","D85611","11:05","14:05",519,""],["2026-10-19","CPH-PMI","2027-07-29","Norwegian","D83666","16:30","19:30",519,""],["2026-10-19","CPH-PMI","2027-07-31","Norwegian","D83666","17:10","20:10",519,""],["2026-10-19","CPH-PMI","2027-07-31","SAS","SK585","14:45","17:50",529,""],["2026-10-19","CPH-PMI","2027-07-31","SAS","SK2587","16:20","19:25",529,""],["2026-10-19","CPH-PMI","2027-07-31","Ryanair","FR2881","09:30","12:30",659,""],["2026-10-19","CPH-PMI","2027-07-31","Norwegian","D83664","06:05","09:05",699,""],["2026-10-19","CPH-PMI","2027-07-31","SAS","SK2811","07:45","10:50",1977,""],["2026-10-19","CPH-PMI","2027-08-05","Norwegian","D85611","11:05","14:05",519,""],["2026-10-19","CPH-PMI","2027-08-05","Norwegian","D83666","16:30","19:30",519,""],["2026-10-19","CPH-PMI","2027-08-07","Norwegian","D83666","17:10","20:10",519,""],["2026-10-19","CPH-PMI","2027-08-07","Norwegian","D83664","06:05","09:05",519,""],["2026-10-19","CPH-PMI","2027-08-07","SAS","SK585","14:45","17:50",529,""],["2026-10-19","CPH-PMI","2027-08-07","SAS","SK2587","16:20","19:25",529,""],["2026-10-19","CPH-PMI","2027-08-07","Ryanair","FR2881","09:30","12:30",659,""],["2026-10-19","CPH-PMI","2027-08-07","SAS","SK2811","07:45","10:50",1148,""],["2026-10-19","CPH-PMI","2027-08-12","SAS","SK585","06:00","09:05",497,""],["2026-10-19","CPH-PMI","2027-08-12","Norwegian","D85611","11:05","14:05",519,""],["2026-10-19","CPH-PMI","2027-08-12","Norwegian","D83666","16:30","19:30",519,""],["2026-10-19","CPH-PMI","2027-08-14","SAS","SK585","10:20","13:25",487,""],["2026-10-19","CPH-PMI","2027-08-14","SAS","SK2587","16:20","19:25",487,""],["2026-10-19","CPH-PMI","2027-08-14","Norwegian","D83666","17:10","20:10",519,""],["2026-10-19","CPH-PMI","2027-08-14","Norwegian","D83664","06:05","09:05",519,""],["2026-10-19","CPH-PMI","2027-08-14","Ryanair","FR2881","09:30","12:30",810,""],["2026-10-19","CPH-PMI","2027-08-14","SAS","SK2811","08:15","11:20",1082,""],["2026-10-19","CPH-PMI","2027-08-19","Norwegian","D85611","11:05","14:05",519,""],["2026-10-19","CPH-PMI","2027-08-19","Norwegian","D83666","16:30","19:30",519,""],["2026-10-19","CPH-PMI","2027-08-19","SAS","SK585","06:00","09:05",865,""],["2026-10-19","CPH-PMI","2027-08-21","Norwegian","D83666","17:10","20:10",519,""],["2026-10-19","CPH-PMI","2027-08-21","Norwegian","D83664","06:05","09:05",679,""],["2026-10-19","CPH-PMI","2027-08-26","Norwegian","D83666","16:30","19:30",519,""],["2026-10-19","CPH-PMI","2027-08-26","SAS","SK585","06:00","09:05",918,""],["2026-10-19","CPH-PMI","2027-08-26","Norwegian","D85611","11:05","14:05",949,""],["2026-10-19","CPH-PMI","2027-08-28","Norwegian","D83666","17:10","20:10",519,""],["2026-10-19","CPH-PMI","2027-08-28","Norwegian","D83664","06:05","09:05",679,""],["2026-10-19","CPH-PMI","2027-08-28","SAS","SK2587","16:20","19:25",918,""],["2026-10-19","CPH-PMI","2027-08-28","Ryanair","FR2881","09:30","12:30",929,""],["2026-10-19","CPH-PMI","2027-08-28","SAS","SK585","10:20","13:25",1633,""],["2026-10-19","CPH-PMI","2027-08-28","SAS","SK2811","08:15","11:20",1983,""],["2026-10-19","CPH-PMI","2027-09-02","Norwegian","D83666","16:30","19:30",519,""],["2026-10-19","CPH-PMI","2027-09-02","SAS","SK2811","16:00","19:05",738,""],["2026-10-19","CPH-PMI","2027-09-02","SAS","SK585","06:00","09:05",962,""],["2026-10-19","CPH-PMI","2027-09-02","Norwegian","D85611","11:05","14:05",1299,""],["2026-10-19","CPH-PMI","2027-09-04","Norwegian","D83666","17:10","20:10",519,""],["2026-10-19","CPH-PMI","2027-09-04","Norwegian","D83664","06:05","09:05",949,""],["2026-10-19","CPH-PMI","2027-09-09","Norwegian","D83666","16:30","19:30",679,""],["2026-10-19","CPH-PMI","2027-09-09","SAS","SK2811","16:00","19:05",703,""],["2026-10-19","CPH-PMI","2027-09-09","SAS","SK585","06:00","09:05",918,""],["2026-10-19","CPH-PMI","2027-09-09","Norwegian","D85611","11:05","14:05",1299,""],["2026-10-19","CPH-PMI","2027-09-11","Norwegian","D83666","17:10","20:10",679,""],["2026-10-19","CPH-PMI","2027-09-11","Norwegian","D83664","06:05","09:05",949,""],["2026-10-19","BLL-PMI","2027-05-08","Norwegian","D85619","20:10","23:00",789,""],["2026-10-19","BLL-PMI","2027-05-15","Norwegian","D85619","20:10","23:00",789,""],["2026-10-19","BLL-PMI","2027-05-22","Norwegian","D85619","20:10","23:00",669,""],["2026-10-19","BLL-PMI","2027-05-29","Norwegian","D85619","20:10","23:00",519,""],["2026-10-19","BLL-PMI","2027-06-05","Norwegian","D85619","20:10","23:00",519,""],["2026-10-19","BLL-PMI","2027-06-12","Norwegian","D85619","20:10","23:00",519,""],["2026-10-19","BLL-PMI","2027-06-19","Norwegian","D85619","20:10","23:00",519,""],["2026-10-19","BLL-PMI","2027-06-26","Norwegian","D85619","20:10","23:00",1269,""],["2026-10-19","BLL-PMI","2027-07-03","Norwegian","D85619","20:10","23:00",1369,""],["2026-10-19","BLL-PMI","2027-07-10","Norwegian","D85619","20:10","23:00",1369,""],["2026-10-19","BLL-PMI","2027-07-17","Norwegian","D85619","20:10","23:00",1269,""],["2026-10-19","BLL-PMI","2027-07-24","Norwegian","D85619","20:10","23:00",519,""],["2026-10-19","BLL-PMI","2027-07-31","Norwegian","D85619","20:10","23:00",519,""],["2026-10-19","BLL-PMI","2027-08-07","Norwegian","D85619","20:10","23:00",519,""],["2026-10-19","BLL-PMI","2027-08-14","Norwegian","D85619","20:10","23:00",519,""],["2026-10-19","BLL-PMI","2027-08-21","Norwegian","D85619","20:10","23:00",519,""],["2026-10-19","BLL-PMI","2027-08-28","Norwegian","D85619","20:10","23:00",669,""],["2026-10-19","BLL-PMI","2027-09-04","Norwegian","D85619","20:10","23:00",519,""],["2026-10-19","BLL-PMI","2027-09-11","Norwegian","D85619","20:10","23:00",919,""],["2026-10-20","CPH-CHQ","2027-05-06","SAS","SK2819","16:55","21:30",1698,""],["2026-10-20","CPH-CHQ","2027-05-08","Norwegian","D83352","15:10","19:40",1199,""],["2026-10-20","CPH-CHQ","2027-05-08","SAS","SK2819","14:25","19:00",1357,""],["2026-10-20","CPH-CHQ","2027-05-13","SAS","SK2819","16:55","21:30",1207,""],["2026-10-20","CPH-CHQ","2027-05-15","Norwegian","D83352","15:10","19:40",1299,""],["2026-10-20","CPH-CHQ","2027-05-15","SAS","SK2819","14:25","19:00",1428,""],["2026-10-20","CPH-CHQ","2027-05-20","SAS","SK2819","16:55","21:30",1793,""],["2026-10-20","CPH-CHQ","2027-05-22","Norwegian","D83352","15:10","19:40",1299,""],["2026-10-20","CPH-CHQ","2027-05-22","SAS","SK2819","14:25","19:00",1574,""],["2026-10-20","CPH-CHQ","2027-05-27","SAS","SK2819","16:55","21:30",1210,""],["2026-10-20","CPH-CHQ","2027-05-29","Norwegian","D83352","15:10","19:40",1399,""],["2026-10-20","CPH-CHQ","2027-05-29","SAS","SK2819","14:25","19:00",1704,""],["2026-10-20","CPH-CHQ","2027-06-03","Norwegian","D83354","21:20","01:50",679,""],["2026-10-20","CPH-CHQ","2027-06-03","SAS","SK2819","16:55","21:30",1799,""],["2026-10-20","CPH-CHQ","2027-06-05","Norwegian","D83352","15:10","19:40",1599,""],["2026-10-20","CPH-CHQ","2027-06-05","SAS","SK2819","14:25","19:00",1959,""],["2026-10-20","CPH-CHQ","2027-06-10","Norwegian","D83354","21:20","01:50",879,""],["2026-10-20","CPH-CHQ","2027-06-10","SAS","SK2819","16:55","21:30",1666,""],["2026-10-20","CPH-CHQ","2027-06-12","Norwegian","D83352","15:10","19:40",1899,""],["2026-10-20","CPH-CHQ","2027-06-12","SAS","SK2819","14:25","19:00",2803,""],["2026-10-20","CPH-CHQ","2027-06-17","Norwegian","D83354","22:45","03:15",879,""],["2026-10-20","CPH-CHQ","2027-06-17","SAS","SK2819","16:55","21:30",2093,""],["2026-10-20","CPH-CHQ","2027-06-19","Norwegian","D83352","15:10","19:40",1699,""],["2026-10-20","CPH-CHQ","2027-06-19","SAS","SK2817","08:10","12:45",2899,""],["2026-10-20","CPH-CHQ","2027-06-19","SAS","SK2819","15:20","19:55",2899,""],["2026-10-20","CPH-CHQ","2027-06-24","Norwegian","D83354","22:45","03:15",1149,""],["2026-10-20","CPH-CHQ","2027-06-24","SAS","SK2817","06:15","10:50",2185,""],["2026-10-20","CPH-CHQ","2027-06-26","Norwegian","D83352","15:10","19:40",1899,""],["2026-10-20","CPH-CHQ","2027-06-26","SAS","SK2817","08:10","12:45",2899,""],["2026-10-20","CPH-CHQ","2027-06-26","SAS","SK2819","15:20","19:55",2899,""],["2026-10-20","CPH-CHQ","2027-07-01","Norwegian","D83354","22:45","03:15",1299,""],["2026-10-20","CPH-CHQ","2027-07-01","SAS","SK2817","06:15","10:50",2191,""],["2026-10-20","CPH-CHQ","2027-07-01","SAS","SK2819","16:55","21:30",2191,""],["2026-10-20","CPH-CHQ","2027-07-03","Norwegian","D83352","15:10","19:40",2099,""],["2026-10-20","CPH-CHQ","2027-07-03","SAS","SK2817","08:10","12:45",3095,""],["2026-10-20","CPH-CHQ","2027-07-03","SAS","SK2819","15:20","19:55",3095,""],["2026-10-20","CPH-CHQ","2027-07-08","Norwegian","D83354","22:45","03:15",1149,""],["2026-10-20","CPH-CHQ","2027-07-08","SAS","SK2817","06:15","10:50",2322,""],["2026-10-20","CPH-CHQ","2027-07-08","SAS","SK2819","16:55","21:30",2322,""],["2026-10-20","CPH-CHQ","2027-07-10","Norwegian","D83352","15:10","19:40",2099,""],["2026-10-20","CPH-CHQ","2027-07-10","SAS","SK2817","08:10","12:45",2772,""],["2026-10-20","CPH-CHQ","2027-07-10","SAS","SK2819","15:20","19:55",2834,""],["2026-10-20","CPH-CHQ","2027-07-15","SAS","SK2819","16:55","21:30",1088,""],["2026-10-20","CPH-CHQ","2027-07-15","Norwegian","D83354","22:45","03:15",1299,""],["2026-10-20","CPH-CHQ","2027-07-15","SAS","SK2817","06:15","10:50",1529,""],["2026-10-20","CPH-CHQ","2027-07-17","SAS","SK2817","08:10","12:45",1529,""],["2026-10-20","CPH-CHQ","2027-07-17","Norwegian","D83352","15:10","19:40",1699,""],["2026-10-20","CPH-CHQ","2027-07-17","SAS","SK2819","15:20","19:55",1952,""],["2026-10-20","CPH-CHQ","2027-07-22","Norwegian","D83354","22:45","03:15",519,""],["2026-10-20","CPH-CHQ","2027-07-22","SAS","SK2819","16:55","21:30",663,""],["2026-10-20","CPH-CHQ","2027-07-22","SAS","SK2817","06:15","10:50",1529,""],["2026-10-20","CPH-CHQ","2027-07-24","SAS","SK2817","08:10","12:45",970,""],["2026-10-20","CPH-CHQ","2027-07-24","Norwegian","D83352","15:10","19:40",999,""],["2026-10-20","CPH-CHQ","2027-07-24","SAS","SK2819","15:20","19:55",1246,""],["2026-10-20","CPH-CHQ","2027-07-29","SAS","SK2819","16:55","21:30",509,""],["2026-10-20","CPH-CHQ","2027-07-29","Norwegian","D83354","22:45","03:15",519,""],["2026-10-20","CPH-CHQ","2027-07-29","SAS","SK2817","06:15","10:50",905,""],["2026-10-20","CPH-CHQ","2027-07-31","SAS","SK2817","08:10","12:45",676,""],["2026-10-20","CPH-CHQ","2027-07-31","Norwegian","D83352","15:10","19:40",699,""],["2026-10-20","CPH-CHQ","2027-07-31","SAS","SK2819","15:20","19:55",1762,""],["2026-10-20","CPH-CHQ","2027-08-05","Norwegian","D83354","22:45","03:15",519,""],["2026-10-20","CPH-CHQ","2027-08-05","SAS","SK2817","06:15","10:50",535,"SE"],["2026-10-20","CPH-CHQ","2027-08-05","SAS","SK2819","16:55","21:30",535,"SE"],["2026-10-20","CPH-CHQ","2027-08-07","SAS","SK2819","15:20","19:55",503,""],["2026-10-20","CPH-CHQ","2027-08-07","Norwegian","D83352","15:10","19:40",519,""],["2026-10-20","CPH-CHQ","2027-08-07","SAS","SK2817","08:10","12:45",676,""],["2026-10-20","CPH-CHQ","2027-08-12","SAS","SK2819","16:55","21:30",507,"NO"],["2026-10-20","CPH-CHQ","2027-08-12","Norwegian","D83354","22:45","03:15",519,""],["2026-10-20","CPH-CHQ","2027-08-14","Norwegian","D83352","15:10","19:40",699,""],["2026-10-20","CPH-CHQ","2027-08-14","SAS","SK2819","14:25","19:00",905,""],["2026-10-20","CPH-CHQ","2027-08-19","Norwegian","D83354","21:20","01:50",519,""],["2026-10-20","CPH-CHQ","2027-08-19","SAS","SK2819","16:55","21:30",529,"SE"],["2026-10-20","CPH-CHQ","2027-08-21","SAS","SK2819","14:25","19:00",925,""],["2026-10-20","CPH-CHQ","2027-08-21","Norwegian","D83352","15:10","19:40",949,""],["2026-10-20","CPH-CHQ","2027-08-26","SAS","SK2819","16:55","21:30",498,""],["2026-10-20","CPH-CHQ","2027-08-26","Norwegian","D83354","21:20","01:50",519,""],["2026-10-20","CPH-CHQ","2027-08-28","Norwegian","D83352","15:10","19:40",949,""],["2026-10-20","CPH-CHQ","2027-08-28","SAS","SK2819","14:25","19:00",1218,""],["2026-10-20","CPH-CHQ","2027-09-02","Norwegian","D83354","21:20","01:50",819,""],["2026-10-20","CPH-CHQ","2027-09-02","SAS","SK2819","16:55","21:30",1205,""],["2026-10-20","CPH-CHQ","2027-09-04","Norwegian","D83352","15:10","19:40",1199,""],["2026-10-20","CPH-CHQ","2027-09-04","SAS","SK2819","14:25","19:00",1573,""],["2026-10-20","CPH-CHQ","2027-09-09","Norwegian","D83354","21:20","01:50",679,""],["2026-10-20","CPH-CHQ","2027-09-09","SAS","SK2819","16:55","21:30",1088,""],["2026-10-20","CPH-CHQ","2027-09-11","Norwegian","D83352","15:10","19:40",1299,""],["2026-10-20","CPH-CHQ","2027-09-11","SAS","SK2819","14:25","19:00",1618,"NO"],["2026-10-20","CPH-LCA","2027-05-08","Norwegian","D83390","15:50","20:45",1198,""],["2026-10-20","CPH-LCA","2027-05-08","SAS","SK2775","15:10","20:10",1597,""],["2026-10-20","CPH-LCA","2027-05-15","Norwegian","D83390","15:50","20:45",1198,""],["2026-10-20","CPH-LCA","2027-05-15","SAS","SK2775","15:10","20:10",1603,""],["2026-10-20","CPH-LCA","2027-05-22","Norwegian","D83390","15:50","20:45",1798,""],["2026-10-20","CPH-LCA","2027-05-22","SAS","SK2775","15:10","20:10",3596,""],["2026-10-20","CPH-LCA","2027-05-29","Norwegian","D83390","15:50","20:45",1598,""],["2026-10-20","CPH-LCA","2027-05-29","SAS","SK2775","15:10","20:10",2913,""],["2026-10-20","CPH-LCA","2027-06-05","SAS","SK2775","15:10","20:10",680,""],["2026-10-20","CPH-LCA","2027-06-05","Norwegian","D83390","15:50","20:45",1078,""],["2026-10-20","CPH-LCA","2027-06-12","Norwegian","D83390","15:50","20:45",1498,""],["2026-10-20","CPH-LCA","2027-06-12","SAS","SK2775","15:10","20:10",1727,""],["2026-10-20","CPH-LCA","2027-06-17","Norwegian","D83390","06:05","11:00",1898,""],["2026-10-20","CPH-LCA","2027-06-19","SAS","SK2775","15:10","20:10",1428,""],["2026-10-20","CPH-LCA","2027-06-19","Norwegian","D83390","06:30","11:25",1698,""],["2026-10-20","CPH-LCA","2027-06-24","Norwegian","D83390","06:05","11:00",1698,""],["2026-10-20","CPH-LCA","2027-06-24","SAS","SK2775","15:55","20:55",1895,""],["2026-10-20","CPH-LCA","2027-06-26","Norwegian","D83390","06:30","11:25",2098,""],["2026-10-20","CPH-LCA","2027-06-26","SAS","SK2775","15:10","20:10",2320,""],["2026-10-20","CPH-LCA","2027-07-01","SAS","SK2775","15:55","20:55",1826,""],["2026-10-20","CPH-LCA","2027-07-01","Norwegian","D83390","06:05","11:00",1898,""],["2026-10-20","CPH-LCA","2027-07-03","SAS","SK2775","15:10","20:10",2071,""],["2026-10-20","CPH-LCA","2027-07-03","Norwegian","D83390","06:30","11:25",2298,""],["2026-10-20","CPH-LCA","2027-07-08","Norwegian","D83390","06:05","11:00",1698,""],["2026-10-20","CPH-LCA","2027-07-08","SAS","SK2775","15:55","20:55",1826,""],["2026-10-20","CPH-LCA","2027-07-10","Norwegian","D83390","06:30","11:25",1898,""],["2026-10-20","CPH-LCA","2027-07-10","SAS","SK2775","15:10","20:10",2570,""],["2026-10-20","CPH-LCA","2027-07-15","Norwegian","D83390","06:05","11:00",1498,""],["2026-10-20","CPH-LCA","2027-07-15","SAS","SK2775","15:55","20:55",1946,""],["2026-10-20","CPH-LCA","2027-07-17","SAS","SK2775","15:10","20:10",1826,""],["2026-10-20","CPH-LCA","2027-07-17","Norwegian","D83390","06:30","11:25",2098,""],["2026-10-20","CPH-LCA","2027-07-22","Norwegian","D83390","06:05","11:00",1148,""],["2026-10-20","CPH-LCA","2027-07-22","SAS","SK2775","15:55","20:55",1601,""],["2026-10-20","CPH-LCA","2027-07-24","Norwegian","D83390","06:30","11:25",1148,""],["2026-10-20","CPH-LCA","2027-07-24","SAS","SK2775","15:10","20:10",1510,""],["2026-10-20","CPH-LCA","2027-07-29","Norwegian","D83390","06:05","11:00",698,""],["2026-10-20","CPH-LCA","2027-07-29","SAS","SK2775","15:55","20:55",1522,""],["2026-10-20","CPH-LCA","2027-07-31","Norwegian","D83390","06:30","11:25",878,""],["2026-10-20","CPH-LCA","2027-07-31","SAS","SK2775","15:10","20:10",1924,""],["2026-10-20","CPH-LCA","2027-08-05","Norwegian","D83390","06:05","11:00",518,""],["2026-10-20","CPH-LCA","2027-08-05","SAS","SK2775","15:55","20:55",1522,""],["2026-10-20","CPH-LCA","2027-08-07","Norwegian","D83390","06:30","11:25",518,""],["2026-10-20","CPH-LCA","2027-08-07","SAS","SK2775","15:10","20:10",1428,""],["2026-10-20","CPH-LCA","2027-08-12","Norwegian","D83390","06:05","11:00",518,""],["2026-10-20","CPH-LCA","2027-08-14","SAS","SK2775","15:10","20:10",515,""],["2026-10-20","CPH-LCA","2027-08-14","Norwegian","D83390","06:30","11:25",698,""],["2026-10-20","CPH-LCA","2027-08-21","Norwegian","D83390","15:50","20:45",678,""],["2026-10-20","CPH-LCA","2027-08-21","SAS","SK2775","15:10","20:10",1031,"NO"],["2026-10-20","CPH-LCA","2027-08-28","SAS","SK2775","15:10","20:10",526,""],["2026-10-20","CPH-LCA","2027-08-28","Norwegian","D83390","15:50","20:45",948,""],["2026-10-20","CPH-LCA","2027-09-04","SAS","SK2775","15:10","20:10",746,""],["2026-10-20","CPH-LCA","2027-09-04","Norwegian","D83390","15:50","20:45",948,""],["2026-10-20","CPH-LCA","2027-09-11","SAS","SK2775","15:10","20:10",963,""],["2026-10-20","CPH-LCA","2027-09-11","Norwegian","D83390","15:50","20:45",1398,""],["2026-10-20","CPH-PMI","2027-05-06","Norwegian","D83666","16:30","19:30",1399,""],["2026-10-20","CPH-PMI","2027-05-06","Norwegian","D85611","11:05","14:05",1599,""],["2026-10-20","CPH-PMI","2027-05-06","SAS","SK585","06:00","09:05",2187,""],["2026-10-20","CPH-PMI","2027-05-06","SAS","SK2811","16:00","19:05",2187,""],["2026-10-20","CPH-PMI","2027-05-08","Norwegian","D83664","06:05","09:05",679,""],["2026-10-20","CPH-PMI","2027-05-08","SAS","SK2587","16:20","19:25",924,""],["2026-10-20","CPH-PMI","2027-05-08","Ryanair","FR2881","09:30","12:30",929,""],["2026-10-20","CPH-PMI","2027-05-08","SAS","SK585","10:20","13:25",1518,""],["2026-10-20","CPH-PMI","2027-05-08","SAS","SK2811","08:15","11:20",2237,""],["2026-10-20","CPH-PMI","2027-05-13","SAS","SK585","06:00","09:05",1335,""],["2026-10-20","CPH-PMI","2027-05-13","Norwegian","D83666","16:30","19:30",1399,""],["2026-10-20","CPH-PMI","2027-05-13","Norwegian","D85611","11:05","14:05",1799,""],["2026-10-20","CPH-PMI","2027-05-13","SAS","SK2811","16:00","19:05",2085,""],["2026-10-20","CPH-PMI","2027-05-15","SAS","SK2587","16:20","19:25",961,""],["2026-10-20","CPH-PMI","2027-05-15","Ryanair","FR2881","09:30","12:30",1009,""],["2026-10-20","CPH-PMI","2027-05-15","Norwegian","D83666","17:10","20:10",1079,""],["2026-10-20","CPH-PMI","2027-05-15","Norwegian","D83664","06:05","09:05",1199,""],["2026-10-20","CPH-PMI","2027-05-15","SAS","SK585","10:20","13:25",1597,""],["2026-10-20","CPH-PMI","2027-05-15","SAS","SK2811","08:15","11:20",2187,""],["2026-10-20","CPH-PMI","2027-05-20","SAS","SK585","06:00","09:05",966,""],["2026-10-20","CPH-PMI","2027-05-20","SAS","SK2811","16:00","19:05",966,""],["2026-10-20","CPH-PMI","2027-05-20","Norwegian","D85611","11:05","14:05",1079,""],["2026-10-20","CPH-PMI","2027-05-20","Norwegian","D83666","16:30","19:30",1199,""],["2026-10-20","CPH-PMI","2027-05-22","Norwegian","D83666","17:10","20:10",679,""],["2026-10-20","CPH-PMI","2027-05-22","Norwegian","D83664","06:05","09:05",1079,""],["2026-10-20","CPH-PMI","2027-05-22","Ryanair","FR2881","09:30","12:30",1449,""],["2026-10-20","CPH-PMI","2027-05-22","SAS","SK2587","16:20","19:25",1687,""],["2026-10-20","CPH-PMI","2027-05-22","SAS","SK585","10:20","13:25",2051,""],["2026-10-20","CPH-PMI","2027-05-22","SAS","SK2811","08:15","11:20",2311,""],["2026-10-20","CPH-PMI","2027-05-27","Norwegian","D83666","16:30","19:30",679,""],["2026-10-20","CPH-PMI","2027-05-27","SAS","SK2811","16:00","19:05",761,""],["2026-10-20","CPH-PMI","2027-05-27","Norwegian","D85611","11:05","14:05",949,""],["2026-10-20","CPH-PMI","2027-05-27","SAS","SK585","06:00","09:05",996,""],["2026-10-20","CPH-PMI","2027-05-29","Norwegian","D83666","17:10","20:10",679,""],["2026-10-20","CPH-PMI","2027-05-29","Ryanair","FR2881","09:30","12:30",929,""],["2026-10-20","CPH-PMI","2027-05-29","Norwegian","D83664","06:05","09:05",1079,""],["2026-10-20","CPH-PMI","2027-05-29","SAS","SK2587","16:20","19:25",1240,""],["2026-10-20","CPH-PMI","2027-05-29","SAS","SK585","10:20","13:25",1640,""],["2026-10-20","CPH-PMI","2027-05-29","SAS","SK2811","08:15","11:20",1990,""],["2026-10-20","CPH-PMI","2027-06-03","Norwegian","D83666","16:30","19:30",679,""],["2026-10-20","CPH-PMI","2027-06-03","SAS","SK585","06:00","09:05",966,""],["2026-10-20","CPH-PMI","2027-06-03","SAS","SK2811","16:00","19:05",966,""],["2026-10-20","CPH-PMI","2027-06-03","Norwegian","D85611","11:05","14:05",1079,""],["2026-10-20","CPH-PMI","2027-06-05","Ryanair","FR2881","09:30","12:30",659,""],["2026-10-20","CPH-PMI","2027-06-05","Norwegian","D83664","06:05","09:05",679,""],["2026-10-20","CPH-PMI","2027-06-05","Norwegian","D83666","17:10","20:10",679,""],["2026-10-20","CPH-PMI","2027-06-05","SAS","SK2587","16:20","19:25",1240,""],["2026-10-20","CPH-PMI","2027-06-05","SAS","SK585","10:20","13:25",1640,""],["2026-10-20","CPH-PMI","2027-06-05","SAS","SK2811","08:15","11:20",2240,""],["2026-10-20","CPH-PMI","2027-06-10","Norwegian","D83666","16:30","19:30",879,""],["2026-10-20","CPH-PMI","2027-06-10","SAS","SK585","06:00","09:05",1209,""],["2026-10-20","CPH-PMI","2027-06-10","Norwegian","D85611","11:05","14:05",1299,""],["2026-10-20","CPH-PMI","2027-06-10","SAS","SK2811","16:00","19:05",1940,""],["2026-10-20","CPH-PMI","2027-06-12","Ryanair","FR2881","09:30","12:30",890,""],["2026-10-20","CPH-PMI","2027-06-12","Norwegian","D83666","17:10","20:10",1149,""],["2026-10-20","CPH-PMI","2027-06-12","Norwegian","D83664","06:05","09:05",1499,""],["2026-10-20","CPH-PMI","2027-06-12","SAS","SK2587","16:20","19:25",1817,""],["2026-10-20","CPH-PMI","2027-06-12","SAS","SK2811","08:15","11:20",2062,""],["2026-10-20","CPH-PMI","2027-06-12","SAS","SK585","10:20","13:25",2062,""],["2026-10-20","CPH-PMI","2027-06-17","Norwegian","D85611","11:05","14:05",1399,""],["2026-10-20","CPH-PMI","2027-06-17","SAS","SK2811","16:00","19:05",1717,""],["2026-10-20","CPH-PMI","2027-06-17","Norwegian","D83666","16:30","19:30",1899,""],["2026-10-20","CPH-PMI","2027-06-17","SAS","SK585","06:00","09:05",1950,""],["2026-10-20","CPH-PMI","2027-06-19","Norwegian","D83666","17:10","20:10",1299,""],["2026-10-20","CPH-PMI","2027-06-19","Ryanair","FR2881","09:30","12:30",1329,""],["2026-10-20","CPH-PMI","2027-06-19","Norwegian","D83664","06:05","09:05",1399,""],["2026-10-20","CPH-PMI","2027-06-19","SAS","SK585","14:45","17:50",1849,""],["2026-10-20","CPH-PMI","2027-06-19","SAS","SK2587","16:20","19:25",1850,""],["2026-10-20","CPH-PMI","2027-06-19","SAS","SK2811","07:45","10:50",2648,""],["2026-10-20","CPH-PMI","2027-06-24","Norwegian","D83666","16:30","19:30",999,""],["2026-10-20","CPH-PMI","2027-06-24","SAS","SK585","06:00","09:05",1095,""],["2026-10-20","CPH-PMI","2027-06-24","Norwegian","D85611","11:05","14:05",1299,""],["2026-10-20","CPH-PMI","2027-06-24","SAS","SK2811","16:00","19:05",2098,""],["2026-10-20","CPH-PMI","2027-06-26","Norwegian","D83666","17:10","20:10",1399,""],["2026-10-20","CPH-PMI","2027-06-26","Ryanair","FR2881","09:30","12:30",1449,""],["2026-10-20","CPH-PMI","2027-06-26","Norwegian","D83664","06:05","09:05",1499,""],["2026-10-20","CPH-PMI","2027-06-26","SAS","SK2587","16:20","19:25",1948,""],["2026-10-20","CPH-PMI","2027-06-26","SAS","SK585","14:45","17:50",1983,""],["2026-10-20","CPH-PMI","2027-06-26","SAS","SK2811","07:45","10:50",3171,""],["2026-10-20","CPH-PMI","2027-07-01","Norwegian","D83666","16:30","19:30",1149,""],["2026-10-20","CPH-PMI","2027-07-01","SAS","SK585","06:00","09:05",1420,""],["2026-10-20","CPH-PMI","2027-07-01","Norwegian","D85611","11:05","14:05",1699,""],["2026-10-20","CPH-PMI","2027-07-01","SAS","SK2811","16:00","19:05",1717,""],["2026-10-20","CPH-PMI","2027-07-03","Norwegian","D83666","17:10","20:10",1499,""],["2026-10-20","CPH-PMI","2027-07-03","Ryanair","FR2881","09:30","12:30",1579,""],["2026-10-20","CPH-PMI","2027-07-03","Norwegian","D83664","06:05","09:05",1699,""],["2026-10-20","CPH-PMI","2027-07-03","SAS","SK585","14:45","17:50",1983,""],["2026-10-20","CPH-PMI","2027-07-03","SAS","SK2587","16:20","19:25",1983,""],["2026-10-20","CPH-PMI","2027-07-03","SAS","SK2811","07:45","10:50",3171,""],["2026-10-20","CPH-PMI","2027-07-08","Norwegian","D83666","16:30","19:30",879,""],["2026-10-20","CPH-PMI","2027-07-08","Norwegian","D85611","11:05","14:05",1399,""],["2026-10-20","CPH-PMI","2027-07-08","SAS","SK585","06:00","09:05",1522,""],["2026-10-20","CPH-PMI","2027-07-08","SAS","SK2811","16:00","19:05",1849,""],["2026-10-20","CPH-PMI","2027-07-10","Norwegian","D83666","17:10","20:10",1499,""],["2026-10-20","CPH-PMI","2027-07-10","Ryanair","FR2881","09:30","12:30",1571,""],["2026-10-20","CPH-PMI","2027-07-10","Norwegian","D83664","06:05","09:05",1699,""],["2026-10-20","CPH-PMI","2027-07-10","SAS","SK2587","16:20","19:25",1940,""],["2026-10-20","CPH-PMI","2027-07-10","SAS","SK585","14:45","17:50",1940,""],["2026-10-20","CPH-PMI","2027-07-10","SAS","SK2811","07:45","10:50",3827,""],["2026-10-20","CPH-PMI","2027-07-15","Norwegian","D83666","16:30","19:30",699,""],["2026-10-20","CPH-PMI","2027-07-15","Norwegian","D85611","11:05","14:05",1299,""],["2026-10-20","CPH-PMI","2027-07-15","SAS","SK585","06:00","09:05",1349,""],["2026-10-20","CPH-PMI","2027-07-15","SAS","SK2811","16:00","19:05",1502,""],["2026-10-20","CPH-PMI","2027-07-17","Ryanair","FR2881","09:30","12:30",1117,""],["2026-10-20","CPH-PMI","2027-07-17","Norwegian","D83666","17:10","20:10",1149,""],["2026-10-20","CPH-PMI","2027-07-17","Norwegian","D83664","06:05","09:05",1299,""],["2026-10-20","CPH-PMI","2027-07-17","SAS","SK2587","16:20","19:25",1603,""],["2026-10-20","CPH-PMI","2027-07-17","SAS","SK585","14:45","17:50",1603,""],["2026-10-20","CPH-PMI","2027-07-17","SAS","SK2811","07:45","10:50",3171,""],["2026-10-20","CPH-PMI","2027-07-22","Norwegian","D83666","16:30","19:30",519,""],["2026-10-20","CPH-PMI","2027-07-22","Norwegian","D85611","11:05","14:05",879,""],["2026-10-20","CPH-PMI","2027-07-22","SAS","SK2811","16:00","19:05",1205,""],["2026-10-20","CPH-PMI","2027-07-22","SAS","SK585","06:00","09:05",1207,""],["2026-10-20","CPH-PMI","2027-07-24","Norwegian","D83666","17:10","20:10",519,""],["2026-10-20","CPH-PMI","2027-07-24","Norwegian","D83664","06:05","09:05",699,""],["2026-10-20","CPH-PMI","2027-07-24","SAS","SK2587","16:20","19:25",960,""],["2026-10-20","CPH-PMI","2027-07-24","Ryanair","FR2881","09:30","12:30",1001,""],["2026-10-20","CPH-PMI","2027-07-24","SAS","SK585","14:45","17:50",1205,""],["2026-10-20","CPH-PMI","2027-07-24","SAS","SK2811","07:45","10:50",2632,""],["2026-10-20","CPH-PMI","2027-07-29","Norwegian","D85611","11:05","14:05",519,""],["2026-10-20","CPH-PMI","2027-07-29","Norwegian","D83666","16:30","19:30",519,""],["2026-10-20","CPH-PMI","2027-07-29","SAS","SK585","06:00","09:05",544,""],["2026-10-20","CPH-PMI","2027-07-29","SAS","SK2811","16:00","19:05",544,""],["2026-10-20","CPH-PMI","2027-07-31","Norwegian","D83666","17:10","20:10",519,""],["2026-10-20","CPH-PMI","2027-07-31","SAS","SK585","14:45","17:50",544,""],["2026-10-20","CPH-PMI","2027-07-31","SAS","SK2587","16:20","19:25",544,""],["2026-10-20","CPH-PMI","2027-07-31","Ryanair","FR2881","09:30","12:30",659,""],["2026-10-20","CPH-PMI","2027-07-31","Norwegian","D83664","06:05","09:05",699,""],["2026-10-20","CPH-PMI","2027-07-31","SAS","SK2811","07:45","10:50",1946,""],["2026-10-20","CPH-PMI","2027-08-05","Norwegian","D85611","11:05","14:05",519,""],["2026-10-20","CPH-PMI","2027-08-05","Norwegian","D83666","16:30","19:30",519,""],["2026-10-20","CPH-PMI","2027-08-05","SAS","SK585","06:00","09:05",544,""],["2026-10-20","CPH-PMI","2027-08-05","SAS","SK2811","16:00","19:05",544,""],["2026-10-20","CPH-PMI","2027-08-07","SAS","SK585","14:45","17:50",517,""],["2026-10-20","CPH-PMI","2027-08-07","SAS","SK2587","16:20","19:25",517,""],["2026-10-20","CPH-PMI","2027-08-07","Norwegian","D83666","17:10","20:10",519,""],["2026-10-20","CPH-PMI","2027-08-07","Norwegian","D83664","06:05","09:05",519,""],["2026-10-20","CPH-PMI","2027-08-07","Ryanair","FR2881","09:30","12:30",659,""],["2026-10-20","CPH-PMI","2027-08-07","SAS","SK2811","07:45","10:50",1157,""],["2026-10-20","CPH-PMI","2027-08-12","Norwegian","D85611","11:05","14:05",519,""],["2026-10-20","CPH-PMI","2027-08-12","Norwegian","D83666","16:30","19:30",519,""],["2026-10-20","CPH-PMI","2027-08-12","SAS","SK585","06:00","09:05",554,""],["2026-10-20","CPH-PMI","2027-08-14","Norwegian","D83666","17:10","20:10",519,""],["2026-10-20","CPH-PMI","2027-08-14","Norwegian","D83664","06:05","09:05",519,""],["2026-10-20","CPH-PMI","2027-08-14","SAS","SK585","10:20","13:25",534,""],["2026-10-20","CPH-PMI","2027-08-14","SAS","SK2587","16:20","19:25",534,""],["2026-10-20","CPH-PMI","2027-08-14","Ryanair","FR2881","09:30","12:30",829,""],["2026-10-20","CPH-PMI","2027-08-14","SAS","SK2811","08:15","11:20",1163,""],["2026-10-20","CPH-PMI","2027-08-19","Norwegian","D85611","11:05","14:05",519,""],["2026-10-20","CPH-PMI","2027-08-19","Norwegian","D83666","16:30","19:30",519,""],["2026-10-20","CPH-PMI","2027-08-19","SAS","SK585","06:00","09:05",846,""],["2026-10-20","CPH-PMI","2027-08-21","Norwegian","D83666","17:10","20:10",519,""],["2026-10-20","CPH-PMI","2027-08-21","Norwegian","D83664","06:05","09:05",679,""],["2026-10-20","CPH-PMI","2027-08-21","SAS","SK2587","16:20","19:25",918,""],["2026-10-20","CPH-PMI","2027-08-21","SAS","SK585","10:20","13:25",1633,""],["2026-10-20","CPH-PMI","2027-08-21","SAS","SK2811","08:15","11:20",1983,""],["2026-10-20","CPH-PMI","2027-08-26","Norwegian","D83666","16:30","19:30",519,""],["2026-10-20","CPH-PMI","2027-08-26","SAS","SK585","06:00","09:05",918,""],["2026-10-20","CPH-PMI","2027-08-26","Norwegian","D85611","11:05","14:05",949,""],["2026-10-20","CPH-PMI","2027-08-28","Norwegian","D83666","17:10","20:10",519,""],["2026-10-20","CPH-PMI","2027-08-28","Norwegian","D83664","06:05","09:05",679,""],["2026-10-20","CPH-PMI","2027-08-28","SAS","SK2587","16:20","19:25",847,""],["2026-10-20","CPH-PMI","2027-08-28","Ryanair","FR2881","09:30","12:30",929,""],["2026-10-20","CPH-PMI","2027-08-28","SAS","SK585","10:20","13:25",1541,""],["2026-10-20","CPH-PMI","2027-08-28","SAS","SK2811","08:15","11:20",1877,""],["2026-10-20","CPH-PMI","2027-09-02","Norwegian","D83666","16:30","19:30",519,""],["2026-10-20","CPH-PMI","2027-09-02","SAS","SK2811","16:00","19:05",671,""],["2026-10-20","CPH-PMI","2027-09-02","SAS","SK585","06:00","09:05",865,""],["2026-10-20","CPH-PMI","2027-09-02","Norwegian","D85611","11:05","14:05",1299,""],["2026-10-20","CPH-PMI","2027-09-04","Norwegian","D83666","17:10","20:10",519,""],["2026-10-20","CPH-PMI","2027-09-04","SAS","SK2587","16:20","19:25",868,"NO"],["2026-10-20","CPH-PMI","2027-09-04","Norwegian","D83664","06:05","09:05",949,""],["2026-10-20","CPH-PMI","2027-09-04","SAS","SK585","10:20","13:25",1574,"NO"],["2026-10-20","CPH-PMI","2027-09-04","SAS","SK2811","08:15","11:20",1917,"NO"],["2026-10-20","CPH-PMI","2027-09-09","SAS","SK2811","16:00","19:05",671,""],["2026-10-20","CPH-PMI","2027-09-09","Norwegian","D83666","16:30","19:30",679,""],["2026-10-20","CPH-PMI","2027-09-09","SAS","SK585","06:00","09:05",865,""],["2026-10-20","CPH-PMI","2027-09-09","Norwegian","D85611","11:05","14:05",1299,""],["2026-10-20","CPH-PMI","2027-09-11","Norwegian","D83666","17:10","20:10",679,""],["2026-10-20","CPH-PMI","2027-09-11","Norwegian","D83664","06:05","09:05",949,""],["2026-10-20","CPH-PMI","2027-09-11","SAS","SK2587","16:20","19:25",966,""],["2026-10-20","CPH-PMI","2027-09-11","Ryanair","FR2881","09:30","12:30",1009,""],["2026-10-20","CPH-PMI","2027-09-11","SAS","SK585","10:20","13:25",1603,""],["2026-10-20","CPH-PMI","2027-09-11","SAS","SK2811","08:15","11:20",2191,""],["2026-10-20","BLL-PMI","2027-05-08","Norwegian","D85619","20:10","23:00",789,""],["2026-10-20","BLL-PMI","2027-05-15","Norwegian","D85619","20:10","23:00",789,""],["2026-10-20","BLL-PMI","2027-05-22","Norwegian","D85619","20:10","23:00",669,""],["2026-10-20","BLL-PMI","2027-05-29","Norwegian","D85619","20:10","23:00",519,""],["2026-10-20","BLL-PMI","2027-06-05","Norwegian","D85619","20:10","23:00",519,""],["2026-10-20","BLL-PMI","2027-06-12","Norwegian","D85619","20:10","23:00",519,""],["2026-10-20","BLL-PMI","2027-06-19","Norwegian","D85619","20:10","23:00",519,""],["2026-10-20","BLL-PMI","2027-06-26","Norwegian","D85619","20:10","23:00",1269,""],["2026-10-20","BLL-PMI","2027-07-03","Norwegian","D85619","20:10","23:00",1369,""],["2026-10-20","BLL-PMI","2027-07-10","Norwegian","D85619","20:10","23:00",1369,""],["2026-10-20","BLL-PMI","2027-07-17","Norwegian","D85619","20:10","23:00",1269,""],["2026-10-20","BLL-PMI","2027-07-24","Norwegian","D85619","20:10","23:00",519,""],["2026-10-20","BLL-PMI","2027-07-31","Norwegian","D85619","20:10","23:00",519,""],["2026-10-20","BLL-PMI","2027-08-07","Norwegian","D85619","20:10","23:00",519,""],["2026-10-20","BLL-PMI","2027-08-14","Norwegian","D85619","20:10","23:00",519,""],["2026-10-20","BLL-PMI","2027-08-21","Norwegian","D85619","20:10","23:00",519,""],["2026-10-20","BLL-PMI","2027-08-28","Norwegian","D85619","20:10","23:00",669,""],["2026-10-20","BLL-PMI","2027-09-04","Norwegian","D85619","20:10","23:00",519,""],["2026-10-20","BLL-PMI","2027-09-11","Norwegian","D85619","20:10","23:00",919,""]],"routes":["CPH-CHQ","CPH-LCA","CPH-PMI","BLL-PMI"],"dates":["2027-05-06","2027-05-08","2027-05-13","2027-05-15","2027-05-20","2027-05-22","2027-05-27","2027-05-29","2027-06-03","2027-06-05","2027-06-10","2027-06-12","2027-06-17","2027-06-19","2027-06-24","2027-06-26","2027-07-01","2027-07-03","2027-07-08","2027-07-10","2027-07-15","2027-07-17","2027-07-22","2027-07-24","2027-07-29","2027-07-31","2027-08-05","2027-08-07","2027-08-12","2027-08-14","2027-08-19","2027-08-21","2027-08-26","2027-08-28","2027-09-02","2027-09-04","2027-09-09","2027-09-11","2027-09-16","2027-09-18","2027-09-23","2027-09-25","2027-09-30","2027-10-02"]};
+const CARRIERS = ["SAS", "Norwegian", "Ryanair"];
+const COLOR = { SAS: "var(--sas)", Norwegian: "var(--dy)", Ryanair: "var(--fr)" };
+const colorOf = c => COLOR[c] || "var(--other)";
+const SHAPE = { SAS: "circle", Norwegian: "square", Ryanair: "diamond" };
+function marker(parent, c, cx, cy, size) {
+  const sh = SHAPE[c] || "circle", s = size;
+  const common = { fill: colorOf(c), stroke: "var(--panel)", "stroke-width": 2 };
+  if (sh === "square") return el("rect", { x: cx - s, y: cy - s, width: 2 * s, height: 2 * s, rx: 1.5, ...common }, parent);
+  if (sh === "diamond") return el("path", { d: `M${cx} ${cy - s * 1.35}L${cx + s * 1.35} ${cy}L${cx} ${cy + s * 1.35}L${cx - s * 1.35} ${cy}Z`, ...common }, parent);
+  return el("circle", { cx, cy, r: s, ...common }, parent);
+}
+const DAYS = [["thu", "Thursday", 4], ["sat", "Saturday", 6]];
+// Weekly Prices Now shows departure weeks 18–36 (data is still collected through week 39)
+const SUMMER_WEEKS = [18, 36];
+const dkk = n => "DKK " + n.toLocaleString("en-GB");
+const dLong = s => new Date(s + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+const dShort = s => new Date(s + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+const snapLong = s => new Date(s + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+function isoWeek(s) {
+  const d = new Date(s + "T00:00:00Z");
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const y0 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil(((d - y0) / 864e5 + 1) / 7);
+}
+const weekdayOf = s => new Date(s + "T12:00:00Z").getUTCDay(); // 4 = tor, 6 = lør
+
+// rows: [search, route, dep, carrier, flight, dep time, arr time, price, market ("" = DK, "NO"/"SE" = udfyldt fra andet marked)]
+const MKT = { NO: "Norwegian", SE: "Swedish" };
+const mtag = v => v && v[8] ? ` <span class="mk" title="Fare from the ${MKT[v[8]] || v[8]} market because the Danish one was missing">${v[8]}</span>` : "";
+const snaps = [...new Set(DATA.rows.map(r => r[0]))].sort().reverse();
+const routesWithData = new Set(DATA.rows.map(r => r[1]));
+const state = { route: DATA.routes[0], day: 6, snap: snaps[0] };
+try {
+  const s = JSON.parse(localStorage.getItem("kp-dash") || "null");
+  if (s && DATA.routes.includes(s.route)) state.route = s.route;
+  if (s && (s.day === 4 || s.day === 6)) state.day = s.day;
+} catch (e) {}
+const save = () => { try { localStorage.setItem("kp-dash", JSON.stringify({ route: state.route, day: state.day })); } catch (e) {} };
+
+function buildFilters() {
+  const rs = document.getElementById("route");
+  rs.innerHTML = DATA.routes.map(r => `<option value="${r}"${r === state.route ? " selected" : ""}>${r.replace("-", "–")}${routesWithData.has(r) ? "" : " (no data)"}</option>`).join("");
+  rs.onchange = () => { state.route = rs.value; save(); render(); };
+  const ds = document.getElementById("day");
+  ds.innerHTML = DAYS.map(([, name, n]) => `<option value="${n}"${n === state.day ? " selected" : ""}>${name}</option>`).join("");
+  ds.onchange = () => { state.day = +ds.value; save(); render(); };
+}
+const sel = document.getElementById("snap");
+snaps.forEach(s => { const o = document.createElement("option"); o.value = s; o.textContent = snapLong(s); sel.appendChild(o); });
+sel.addEventListener("change", () => { state.snap = sel.value; render(); });
+
+// Lowest price per carrier per departure for the current filters
+function series() {
+  const deps = DATA.dates.filter(d => weekdayOf(d) === state.day && isoWeek(d) >= SUMMER_WEEKS[0] && isoWeek(d) <= SUMMER_WEEKS[1]);
+  const rows = DATA.rows.filter(r => r[0] === state.snap && r[1] === state.route && weekdayOf(r[2]) === state.day);
+  const best = {};
+  for (const r of rows) {
+    const k = r[2] + "|" + r[3];
+    if (!best[k] || (r[7] != null && (best[k][7] == null || r[7] < best[k][7]))) best[k] = r;
+  }
+  const present = new Set(Object.values(best).map(r => r[3]));
+  const carriers = [...CARRIERS.filter(c => present.has(c)), ...[...present].filter(c => !CARRIERS.includes(c)).sort()];
+  const searchedUntil = DATA.rows.filter(r => r[0] === state.snap).reduce((m, r) => r[2] > m ? r[2] : m, "");
+  const points = deps.map(d => ({ d, w: isoWeek(d), searchable: d <= searchedUntil, v: Object.fromEntries(carriers.map(c => [c, best[d + "|" + c] || null])) }));
+  return { carriers, points };
+}
+
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+function niceMax(v) { const step = v > 2000 ? 1000 : 500; return Math.ceil(v / step) * step; }
+
+function drawChart(S) {
+  const box = document.getElementById("chartbox");
+  box.innerHTML = "";
+  const any = S.points.some(p => S.carriers.some(c => p.v[c] && p.v[c][7] != null));
+  if (!any) {
+    box.innerHTML = `<div class="empty">No direct scheduled flights found on ${state.route.replace("-", "–")} on ${state.day === 4 ? "Thursdays" : "Saturdays"}.</div>`;
+    return;
+  }
+  const W = Math.max(320, box.clientWidth), H = W < 520 ? 280 : 340;
+  const m = { t: 30, r: 16, b: 44, l: 58 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const vals = S.points.flatMap(p => S.carriers.map(c => p.v[c] && p.v[c][7]).filter(v => v != null));
+  const ymax = niceMax(Math.max(...vals) * 1.05);
+  const n = S.points.length;
+  const x = i => m.l + (n === 1 ? iw / 2 : (i / (n - 1)) * iw);
+  const y = v => m.t + ih - (v / ymax) * ih;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `Lowest fare per airline per week, ${state.route}` }, box);
+
+  // grid + y axis
+  const ga = el("g", { class: "axis" }, svg);
+  const step = ymax > 3000 ? 1000 : 500;
+  for (let v = 0; v <= ymax; v += step) {
+    el("line", { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: v === 0 ? "rgba(255,255,255,.55)" : "var(--grid)", "stroke-width": 1 }, ga);
+    const t = el("text", { x: m.l - 8, y: y(v) + 4, "text-anchor": "end" }, ga); t.textContent = v.toLocaleString("en-GB");
+  }
+  const yt = el("text", { class: "title", x: m.l - 8, y: m.t - 16, "text-anchor": "end" }, ga); yt.textContent = "DKK";
+  // x axis: week numbers (thin labels on narrow screens)
+  const every = iw / n < 22 ? 2 : 1;
+  S.points.forEach((p, i) => {
+    if (i % every) return;
+    const t = el("text", { x: x(i), y: H - m.b + 18, "text-anchor": "middle" }, ga); t.textContent = p.w;
+  });
+  const xt = el("text", { class: "title", x: m.l + iw / 2, y: H - 6, "text-anchor": "middle" }, ga); xt.textContent = "Departure week 2027";
+
+  // not-yet-searchable band
+  const firstNS = S.points.findIndex(p => !p.searchable);
+  if (firstNS >= 0) {
+    const x0 = (x(firstNS - 1) + x(firstNS)) / 2;
+    el("rect", { x: x0, y: m.t, width: W - m.r - x0, height: ih, fill: "rgba(255,255,255,.07)" }, svg);
+    if (W - m.r - x0 > 96) {
+      const t = el("text", { x: (x0 + W - m.r) / 2, y: m.t + 16, "text-anchor": "middle", fill: "var(--faint)", "font-size": 11, "font-family": "var(--font-display)" }, svg);
+      t.textContent = "Not on sale yet";
+    }
+  }
+
+  // lines + markers per carrier
+  for (const c of S.carriers) {
+    let d = "", pen = false;
+    S.points.forEach((p, i) => {
+      const r = p.v[c];
+      if (r && r[7] != null) { d += (pen ? "L" : "M") + x(i) + " " + y(r[7]) + " "; pen = true; } else pen = false;
+    });
+    el("path", { d, fill: "none", stroke: colorOf(c), "stroke-width": 2.5, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+    S.points.forEach((p, i) => {
+      const r = p.v[c];
+      if (r && r[7] != null) marker(svg, c, x(i), y(r[7]), 4.5);
+    });
+  }
+
+  // hover: crosshair + tooltip, snapped to nearest week
+  const cross = el("line", { y1: m.t, y2: m.t + ih, stroke: "var(--accent)", "stroke-width": 1.5, "stroke-dasharray": "4 3", visibility: "hidden" }, svg);
+  const tip = document.createElement("div"); tip.className = "tip"; tip.hidden = true; box.appendChild(tip);
+  const hit = el("rect", { x: m.l - 10, y: m.t, width: iw + 20, height: ih, fill: "transparent" }, svg);
+  function show(evt) {
+    const r = svg.getBoundingClientRect();
+    const px = (evt.clientX - r.left) * (W / r.width);
+    const i = Math.max(0, Math.min(n - 1, Math.round(n === 1 ? 0 : ((px - m.l) / iw) * (n - 1))));
+    const p = S.points[i];
+    cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("visibility", "visible");
+    const rows = S.carriers.map(c => [c, p.v[c]]).sort((a, b) => ((a[1] && a[1][7] != null) ? a[1][7] : 1e9) - ((b[1] && b[1][7] != null) ? b[1][7] : 1e9));
+    tip.innerHTML = `<b>Week ${p.w}</b> · ${dLong(p.d)}` +
+      (!p.searchable ? `<div class="none">Not on sale yet</div>` :
+        rows.map(([c, v]) => `<div class="r"><span><i class="dot" style="background:${colorOf(c)}"></i>${c}</span><span>${v ? (v[7] != null ? `<strong>${dkk(v[7])}</strong>${mtag(v)}` : '<span class="none">fare unknown</span>') : '<span class="none">none</span>'}</span></div>`).join(""));
+    tip.hidden = false;
+    const scale = r.width / W;
+    let left = x(i) * scale + 12;
+    if (left + tip.offsetWidth > box.clientWidth) left = x(i) * scale - tip.offsetWidth - 12;
+    tip.style.left = Math.max(0, left) + "px";
+    tip.style.top = (m.t * scale) + "px";
+  }
+  const hide = () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); };
+  hit.addEventListener("pointermove", show);
+  hit.addEventListener("pointerdown", show);
+  hit.addEventListener("pointerleave", hide);
+}
+
+function drawLegend(S) {
+  const lg = document.getElementById("legend");
+  lg.innerHTML = "";
+  S.carriers.forEach(c => {
+    const span = document.createElement("span");
+    const sv = el("svg", { viewBox: "0 0 26 12", "aria-hidden": "true" }, span);
+    el("line", { x1: 1, x2: 25, y1: 6, y2: 6, stroke: colorOf(c), "stroke-width": 2.5, "stroke-linecap": "round" }, sv);
+    marker(sv, c, 13, 6, 3.5);
+    span.appendChild(document.createTextNode(c));
+    lg.appendChild(span);
+  });
+}
+
+function drawTable(S) {
+  const t = document.getElementById("table");
+  if (!S.carriers.length) { t.innerHTML = `<tbody><tr><td class="na">No data for this route and weekday.</td></tr></tbody>`; return; }
+  let h = `<thead><tr><th>Week</th><th>Date</th>${S.carriers.map(c => `<th class="air"><i class="dot" style="background:${colorOf(c)};margin-right:6px"></i>${c}</th>`).join("")}</tr></thead><tbody>`;
+  for (const p of S.points) {
+    const prices = S.carriers.map(c => p.v[c] && p.v[c][7]).filter(v => v != null);
+    const flies = S.carriers.some(c => p.v[c]);
+    const min = prices.length > 1 ? Math.min(...prices) : null;
+    h += `<tr><td class="wk">${p.w}</td><td class="date">${dShort(p.d)}</td>`;
+    if (!p.searchable) { h += `<td class="na" colspan="${S.carriers.length}">Not on sale yet</td>`; }
+    else if (!flies) { h += `<td class="na" colspan="${S.carriers.length}">No direct flights</td>`; }
+    else for (const c of S.carriers) {
+      const v = p.v[c];
+      h += !v ? `<td class="air na">–</td>` : v[7] == null ? `<td class="air na">Fare unknown<span class="fl">${v[4]} ${v[5]}</span></td>` : `<td class="air${v[7] === min ? " cheap" : ""}"><span class="price">${dkk(v[7])}</span>${mtag(v)}<span class="fl">${v[4]} ${v[5]}</span></td>`;
+    }
+    h += `</tr>`;
+  }
+  t.innerHTML = h + `</tbody>`;
+}
+
+function render() {
+  document.getElementById("latestLabel").textContent = snapLong(snaps[0]);
+  document.getElementById("chartTitle").textContent = `One Way Price per Seat · ${state.route.replace("-", "–")}, ${state.day === 4 ? "Thursdays" : "Saturdays"}`;
+  document.getElementById("tableTitle").textContent = `Prices per week · ${state.route.replace("-", "–")}, ${state.day === 4 ? "Thursdays" : "Saturdays"}`;
+  const S = series();
+  drawLegend(S); drawChart(S); drawTable(S);
+}
+// ================= Price Development: one departure week, from today to departure =================
+const DEV_WEEK = 29;          // departure week followed in Price Development
+const DEV_YEAR = 2027;
+const ROUTE_DASH = { "CPH-CHQ": "", "CPH-LCA": "8 5", "CPH-PMI": "2 5", "BLL-PMI": "11 4 2 4" };
+const dashOf = r => (r in ROUTE_DASH ? ROUTE_DASH[r] : "4 3");
+const rName = r => r.replace("-", "–");
+function isoYW(s) {
+  const d = new Date(s + "T00:00:00Z"); const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const y = d.getUTCFullYear(), y0 = new Date(Date.UTC(y, 0, 1));
+  return [y, Math.ceil(((d - y0) / 864e5 + 1) / 7)];
+}
+const wkKey = (y, w) => `${y}-${String(w).padStart(2, "0")}`;
+function addWeeks(key, n) {
+  const [y, w] = key.split("-").map(Number);
+  const jan4 = new Date(Date.UTC(y, 0, 4));
+  const mon = new Date(jan4); mon.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() || 7) - 1) + (w - 1 + n) * 7);
+  return wkKey(...isoYW(mon.toISOString().slice(0, 10)));
+}
+const wkNum = k => +k.split("-")[1];
+const wkYear = k => +k.split("-")[0];
+// Latest update in each update week
+const weekSnap = {};
+[...snaps].sort().forEach(s => { weekSnap[wkKey(...isoYW(s))] = s; });
+const weekKeys = Object.keys(weekSnap).sort();
+// Axis: first update week → departure week
+const depKey = wkKey(DEV_YEAR, DEV_WEEK);
+const axisWeeks = (() => {
+  if (!weekKeys.length) return [];
+  const out = [weekKeys[0]];
+  while (out[out.length - 1] < depKey) out.push(addWeeks(out[out.length - 1], 1));
+  return out;
+})();
+const depDate = day => DATA.dates.find(d => isoWeek(d) === DEV_WEEK && weekdayOf(d) === day);
+
+const presentCarriers = (() => {
+  const p = new Set(DATA.rows.map(r => r[3]));
+  return [...CARRIERS.filter(c => p.has(c)), ...[...p].filter(c => !CARRIERS.includes(c)).sort()];
+})();
+const routesB = DATA.routes.filter(r => routesWithData.has(r));
+const bs = { cars: new Set(presentCarriers), routes: new Set(routesB.slice(0, 1)), day: 6, sim: true };
+try {
+  const s = JSON.parse(localStorage.getItem("kp-dash-b2") || "null");
+  if (s) {
+    if (Array.isArray(s.cars)) { const c = s.cars.filter(x => presentCarriers.includes(x)); if (c.length) bs.cars = new Set(c); }
+    if (Array.isArray(s.routes)) { const r = s.routes.filter(x => routesB.includes(x)); if (r.length) bs.routes = new Set(r); }
+    if (s.day === 4 || s.day === 6) bs.day = s.day;
+  }
+} catch (e) {}
+const saveB = () => { try { localStorage.setItem("kp-dash-b2", JSON.stringify({ cars: [...bs.cars], routes: [...bs.routes], day: bs.day, sim: bs.sim })); } catch (e) {} };
+
+function multi(id, options, set, onChange, allText) {
+  const det = document.getElementById(id), sum = det.querySelector("summary"), menu = det.querySelector(".menu");
+  menu.innerHTML = "";
+  const allL = document.createElement("label"); allL.className = "all";
+  const allI = document.createElement("input"); allI.type = "checkbox"; allI.id = id + "-all";
+  allL.append(allI, "Select all"); menu.append(allL);
+  const boxes = options.map(o => {
+    const l = document.createElement("label"), i = document.createElement("input");
+    i.type = "checkbox"; i.id = id + "-" + o.v; i.checked = set.has(o.v);
+    i.addEventListener("change", () => { i.checked ? set.add(o.v) : set.delete(o.v); sync(); onChange(); });
+    l.append(i);
+    if (o.dot) { const d = document.createElement("i"); d.className = "dot"; d.style.background = o.dot; l.append(d); }
+    l.append(o.t); menu.append(l); return i;
+  });
+  function sync() {
+    allI.checked = set.size === options.length; allI.indeterminate = set.size > 0 && set.size < options.length;
+    sum.textContent = set.size === options.length ? allText : set.size === 0 ? "None selected" : options.filter(o => set.has(o.v)).map(o => o.t).join(", ");
+  }
+  allI.addEventListener("change", () => {
+    options.forEach((o, k) => { allI.checked ? set.add(o.v) : set.delete(o.v); boxes[k].checked = allI.checked; });
+    sync(); onChange();
+  });
+  sync();
+}
+document.addEventListener("click", e => {
+  document.querySelectorAll("details.ms[open]").forEach(d => { if (!d.contains(e.target)) d.open = false; });
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") document.querySelectorAll("details.ms[open]").forEach(d => { d.open = false; d.querySelector("summary").focus(); });
+});
+
+function buildFiltersB() {
+  multi("bCar", presentCarriers.map(c => ({ v: c, t: c, dot: colorOf(c) })), bs.cars, () => { saveB(); renderB(); }, "All airlines");
+  multi("bRoute", routesB.map(r => ({ v: r, t: rName(r) })), bs.routes, () => { saveB(); renderB(); }, "All routes");
+  const ds = document.getElementById("bDay");
+  ds.innerHTML = DAYS.map(([, name, n]) => `<option value="${n}"${n === bs.day ? " selected" : ""}>${name}</option>`).join("");
+  ds.onchange = () => { bs.day = +ds.value; saveB(); renderB(); };
+}
+
+// ---------- Simulated fares (demo only) ----------
+// Deterministic so the picture does not change on every reload.
+function seeded(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 100000) / 100000; };
+}
+const SIM_PROFILE = {           // how each airline tends to move toward departure
+  SAS: { lift: 0.75, vol: 0.035, tail: 6 },
+  Norwegian: { lift: 1.05, vol: 0.06, tail: 5 },
+  Ryanair: { lift: 1.35, vol: 0.08, tail: 4 },
+};
+function simulatePath(seriesKey, carrier, base, startIdx, n) {
+  const pr = SIM_PROFILE[carrier] || { lift: 0.9, vol: 0.05, tail: 5 };
+  const rnd = seeded(seriesKey);
+  const out = {};
+  let level = base, sale = 0;
+  for (let i = startIdx + 1; i < n; i++) {
+    const weeksLeft = n - 1 - i;
+    // slow drift + fare-bucket steps as seats sell, faster near departure
+    const target = base * (1 + pr.lift * Math.exp(-weeksLeft / pr.tail) + 0.12 * (1 - weeksLeft / n));
+    level += (target - level) * 0.35 + base * pr.vol * (rnd() - 0.5) * 2;
+    if (sale > 0) sale--; else if (weeksLeft > 6 && rnd() < 0.06) sale = 1 + Math.floor(rnd() * 2);
+    let p = level * (sale > 0 ? 0.82 : 1);
+    p = Math.max(base * 0.6, p);
+    p = carrier === "SAS" ? Math.round(p) : Math.round(p / 100) * 100 - 1;   // Norwegian/Ryanair style xx99
+    out[i] = p;
+  }
+  return out;
+}
+
+// One series = one airline on one route, for the departure in DEV_WEEK on the chosen weekday
+function seriesB() {
+  const dep = depDate(bs.day);
+  const out = [];
+  if (!dep) return out;
+  for (const r of routesB) {
+    if (!bs.routes.has(r)) continue;
+    for (const c of presentCarriers) {
+      if (!bs.cars.has(c)) continue;
+      const real = {};
+      for (const wk of weekKeys) {
+        let best = null;
+        for (const row of DATA.rows) {
+          if (row[0] !== weekSnap[wk] || row[1] !== r || row[3] !== c || row[2] !== dep || row[7] == null) continue;
+          if (best == null || row[7] < best) best = row[7];
+        }
+        if (best != null) real[wk] = best;
+      }
+      // Does the airline fly this departure at all (in any update)?
+      const flies = DATA.rows.some(row => row[1] === r && row[3] === c && row[2] === dep);
+      if (!flies) continue;
+      const pts = axisWeeks.map(k => (k in real ? { v: real[k], sim: false } : null));
+      if (bs.sim) {
+        const realIdx = pts.map((p, i) => (p ? i : -1)).filter(i => i >= 0);
+        let base, start;
+        if (realIdx.length) { start = realIdx[realIdx.length - 1]; base = pts[start].v; }
+        else {
+          // no real fare for this departure yet: start from the airline's median on this route
+          const ps = DATA.rows.filter(row => row[1] === r && row[3] === c && row[7] != null && weekdayOf(row[2]) === bs.day).map(row => row[7]).sort((a, b) => a - b);
+          if (!ps.length) continue;
+          base = ps[Math.floor(ps.length / 2)]; start = 0; pts[0] = { v: base, sim: true };
+        }
+        const sim = simulatePath(`${r}|${c}|${bs.day}`, c, base, start, axisWeeks.length);
+        for (const i in sim) if (!pts[i]) pts[i] = { v: sim[i], sim: true };
+      }
+      if (pts.some(Boolean)) out.push({ route: r, carrier: c, pts, dep });
+    }
+  }
+  return out;
+}
+
+function lineSample(parent, c, r, w) {
+  const sv = el("svg", { viewBox: `0 0 ${w} 12`, "aria-hidden": "true" }, parent);
+  el("line", { x1: 1, x2: w - 1, y1: 6, y2: 6, stroke: colorOf(c), "stroke-width": 2.5, "stroke-linecap": "round", "stroke-dasharray": dashOf(r) }, sv);
+  marker(sv, c, w / 2, 6, 3.5);
+}
+
+function drawChartB(S) {
+  const box = document.getElementById("bChart");
+  box.innerHTML = "";
+  if (!S.length) {
+    box.innerHTML = `<div class="empty">${!bs.cars.size || !bs.routes.size ? "Select at least one airline and one route." : "No fares for this selection."}</div>`;
+    return;
+  }
+  const W = Math.max(320, box.clientWidth), H = W < 520 ? 290 : 360;
+  const m = { t: 30, r: 20, b: 50, l: 58 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const n = axisWeeks.length;
+  const x = i => m.l + (n === 1 ? iw / 2 : (i / (n - 1)) * iw);
+  const vals = S.flatMap(s => s.pts.filter(Boolean).map(p => p.v));
+  const ymax = niceMax(Math.max(...vals) * 1.08);
+  const y = v => m.t + ih - (v / ymax) * ih;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `One way price per seat by update week, departure week ${DEV_WEEK}` }, box);
+  const ga = el("g", { class: "axis" }, svg);
+  const step = ymax > 4000 ? 1000 : 500;
+  for (let v = 0; v <= ymax; v += step) {
+    el("line", { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: v === 0 ? "rgba(255,255,255,.55)" : "var(--grid)", "stroke-width": 1 }, ga);
+    el("text", { x: m.l - 8, y: y(v) + 4, "text-anchor": "end" }, ga).textContent = v.toLocaleString("en-GB");
+  }
+  el("text", { class: "title", x: m.l - 8, y: m.t - 16, "text-anchor": "end" }, ga).textContent = "DKK";
+  // Week labels: thin out to fit, always show first and departure week
+  const every = Math.max(1, Math.ceil(28 / (iw / n)));
+  axisWeeks.forEach((k, i) => {
+    if (i % every && i !== n - 1) return;
+    if (i !== n - 1 && n - 1 - i < every) return;
+    el("text", { x: x(i), y: H - m.b + 18, "text-anchor": "middle" }, ga).textContent = wkNum(k);
+  });
+  // Year boundary
+  const yi = axisWeeks.findIndex((k, i) => i > 0 && wkYear(k) !== wkYear(axisWeeks[i - 1]));
+  if (yi > 0) {
+    const xx = (x(yi - 1) + x(yi)) / 2;
+    el("line", { x1: xx, x2: xx, y1: m.t, y2: m.t + ih, stroke: "rgba(255,255,255,.08)", "stroke-width": 1 }, svg);
+    el("text", { x: xx + 5, y: m.t + ih - 6, fill: "var(--faint)", opacity: .5, "font-size": 10, "font-family": "var(--font-display)" }, svg).textContent = wkYear(axisWeeks[yi]);
+  }
+  // Sketch zone: everything after the last real update is simulated. Shown as a faint watermark behind the lines.
+  const lastReal = Math.max(...S.map(s => s.pts.reduce((m, p, i) => (p && !p.sim ? i : m), -1)));
+  if (lastReal < n - 1) {
+    const sx = lastReal >= 0 ? (x(lastReal) + x(lastReal + 1)) / 2 : m.l;
+    const cx = (sx + x(n - 1)) / 2, cy = m.t + ih / 2;
+    const fs = Math.max(34, Math.min(110, (x(n - 1) - sx) / 4.2));
+    const wm = el("text", { x: cx, y: cy, "text-anchor": "middle", "dominant-baseline": "middle", transform: `rotate(-14 ${cx} ${cy})`,
+      fill: "#ffffff", opacity: .07, "font-size": fs, "font-weight": 700, "letter-spacing": fs * 0.12, "font-family": "var(--font-display)", "pointer-events": "none" }, svg);
+    wm.textContent = "SKITSE";
+  }
+  // Departure marker
+  el("line", { x1: x(n - 1), x2: x(n - 1), y1: m.t, y2: m.t + ih, stroke: "var(--accent)", "stroke-width": 1.5 }, svg);
+  el("text", { x: x(n - 1) - 5, y: m.t + 12, "text-anchor": "end", fill: "var(--accent)", "font-size": 11, "font-weight": 700, "font-family": "var(--font-display)" }, svg).textContent = "Departure";
+  el("text", { class: "title", x: m.l + iw / 2, y: H - 8, "text-anchor": "middle" }, ga).textContent = "Update week";
+
+  for (const s of S) {
+    // draw segment by segment so simulated parts can be faded
+    for (let i = 1; i < n; i++) {
+      const a = s.pts[i - 1], b = s.pts[i];
+      if (!a || !b) continue;
+      el("line", { x1: x(i - 1), y1: y(a.v), x2: x(i), y2: y(b.v), stroke: colorOf(s.carrier), "stroke-width": 2.5, "stroke-linecap": "round", "stroke-dasharray": dashOf(s.route), opacity: b.sim ? 0.45 : 1 }, svg);
+    }
+    s.pts.forEach((p, i) => {
+      if (!p) return;
+      if (p.sim) { if (n < 45) el("circle", { cx: x(i), cy: y(p.v), r: 2, fill: colorOf(s.carrier), opacity: 0.55 }, svg); }
+      else marker(svg, s.carrier, x(i), y(p.v), 5);
+    });
+  }
+  const cross = el("line", { y1: m.t, y2: m.t + ih, stroke: "var(--accent)", "stroke-width": 1.5, "stroke-dasharray": "4 3", visibility: "hidden" }, svg);
+  const tip = document.createElement("div"); tip.className = "tip"; tip.hidden = true; box.appendChild(tip);
+  const hit = el("rect", { x: m.l - 10, y: m.t, width: iw + 20, height: ih, fill: "transparent" }, svg);
+  function show(evt) {
+    const r = svg.getBoundingClientRect();
+    const px = (evt.clientX - r.left) * (W / r.width);
+    const i = Math.max(0, Math.min(n - 1, Math.round(((px - m.l) / iw) * (n - 1))));
+    const k = axisWeeks[i];
+    cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("visibility", "visible");
+    const left = n - 1 - i;
+    const head = `<b>Update week ${wkNum(k)}</b>` + (weekSnap[k] ? ` · ${dShort(weekSnap[k])}` : "") + `<div class="none">${left ? left + (left === 1 ? " week" : " weeks") + " to departure" : "Departure week"}</div>`;
+    const rows = S.filter(s => s.pts[i]).sort((a, b) => a.pts[i].v - b.pts[i].v);
+    tip.innerHTML = head + (rows.length ? rows.map(s => `<div class="r"><span><i class="dot" style="background:${colorOf(s.carrier)}"></i>${s.carrier} · ${rName(s.route)}</span><span><strong>${dkk(s.pts[i].v)}</strong>${s.pts[i].sim ? ' <span class="simtag">SKITSE</span>' : ""}</span></div>`).join("")
+      : `<div class="none">Not updated yet</div>`);
+    tip.hidden = false;
+    const scale = r.width / W;
+    let lft = x(i) * scale + 12;
+    if (lft + tip.offsetWidth > box.clientWidth) lft = x(i) * scale - tip.offsetWidth - 12;
+    tip.style.left = Math.max(0, lft) + "px"; tip.style.top = (m.t * scale) + "px";
+  }
+  const hide = () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); };
+  hit.addEventListener("pointermove", show); hit.addEventListener("pointerdown", show); hit.addEventListener("pointerleave", hide);
+}
+
+function drawLegendB(S) {
+  const lg = document.getElementById("bLegend"); lg.innerHTML = "";
+  S.forEach(s => {
+    const span = document.createElement("span"); span.className = "ls";
+    lineSample(span, s.carrier, s.route, 34);
+    span.append(`${s.carrier} · ${rName(s.route)}`);
+    lg.appendChild(span);
+  });
+}
+
+function drawTableB(S) {
+  const t = document.getElementById("bTable");
+  if (!S.length) { t.innerHTML = `<tbody><tr><td class="na">No data for this selection.</td></tr></tbody>`; return; }
+  let h = `<thead><tr><th>Update week</th><th class="num">Weeks to dep.</th>${S.map(s => `<th class="air"><i class="dot" style="background:${colorOf(s.carrier)};margin-right:6px"></i>${s.carrier} · ${rName(s.route)}</th>`).join("")}</tr></thead><tbody>`;
+  let sketchShown = false;
+  axisWeeks.forEach((k, i) => {
+    if (!S.some(s => s.pts[i])) return;
+    if (!sketchShown && S.some(s => s.pts[i] && s.pts[i].sim)) {
+      sketchShown = true;
+      h += `<tr class="sketch-row"><td colspan="${S.length + 2}"><span class="simtag">SKITSE</span> <span class="fl">simulated from here</span></td></tr>`;
+    }
+    h += `<tr><td class="wk">${wkNum(k)}${wkYear(k) !== DEV_YEAR ? "" : ` <span class="fl">${DEV_YEAR}</span>`}</td><td class="num date">${axisWeeks.length - 1 - i}</td>`;
+    for (const s of S) {
+      const p = s.pts[i];
+      h += !p ? `<td class="air na">–</td>` : `<td class="air${p.sim ? " sim" : ""}"><span class="price">${dkk(p.v)}</span></td>`;
+    }
+    h += `</tr>`;
+  });
+  t.innerHTML = h + `</tbody>`;
+}
+
+function renderB() {
+  const dayTxt = bs.day === 4 ? "Thursday" : "Saturday";
+  const dep = depDate(bs.day);
+  document.getElementById("bTitle").textContent = `One Way Price per Seat · departure week ${DEV_WEEK}` + (dep ? ` (${dayTxt} ${dShort(dep)} ${DEV_YEAR})` : "");
+  const S = seriesB();
+  drawChartB(S); drawLegendB(S); drawTableB(S);
+  const realWeeks = weekKeys.map(wkNum).join(", ");
+  document.getElementById("bNote").innerHTML =
+    `<strong>The area marked SKITSE is simulated and for illustration only.</strong> Only update week${weekKeys.length > 1 ? "s" : ""} ${realWeeks} contain${weekKeys.length > 1 ? "" : "s"} real fares (solid markers). The faded lines after that are an invented example of how fares could move toward departure. Real fares replace them as the weekly updates come in. ` +
+    `Line colour shows the airline and line style shows the route. If fares are collected more than once in a week, the latest update is used.`;
+}
+
+// ================= Tabs =================
+function showTab(t) {
+  ["a", "b"].forEach(k => {
+    document.getElementById("tab-" + k).setAttribute("aria-selected", String(k === t));
+    document.getElementById("panel-" + k).hidden = k !== t;
+  });
+  try { localStorage.setItem("kp-tab", t); } catch (e) {}
+  t === "b" ? renderB() : render();
+}
+document.getElementById("tab-a").addEventListener("click", () => showTab("a"));
+document.getElementById("tab-b").addEventListener("click", () => showTab("b"));
+let rt; window.addEventListener("resize", () => {
+  clearTimeout(rt);
+  rt = setTimeout(() => (document.getElementById("panel-b").hidden ? render() : renderB()), 120);
+});
+document.getElementById("latestLabel").textContent = snaps.length ? snapLong(snaps[0]) : "";
+buildFilters();
+buildFiltersB();
+let startTab = "a";
+try { startTab = localStorage.getItem("kp-tab") || "a"; } catch (e) {}
+if (location.hash === "#development") startTab = "b";
+if (location.hash === "#summer") startTab = "a";
+showTab(startTab === "b" ? "b" : "a");
+</script>
+
+</body>
+</html>

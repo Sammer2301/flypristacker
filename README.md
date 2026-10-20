@@ -21,7 +21,10 @@ Søgedefinitionen ligger fast i toppen af `fetch_prices.py`. Ændres den underve
 | `fetch_prices.py` | Henter priserne og gemmer dem. |
 | `data/prices_google.csv` | Historikken. Én række per fly per søgning. Oprettes ved første fulde kørsel. |
 | `data/errors.csv` | Søgninger der fejlede (oprettes kun hvis noget fejler). |
-| `.github/workflows/weekly.yml` | Kører det automatisk hver mandag kl. 07 via GitHub. |
+| `.github/workflows/weekly.yml` | Kører det automatisk hver mandag kl. 07 via GitHub og bygger dashboardet bagefter. |
+| `dashboard/template.html` | Dashboardets design (grafer, tabeller, filtre). |
+| `dashboard/build.py` | Bygger `docs/index.html` ud fra `data/prices_google.csv` og `routes.csv`. |
+| `docs/index.html` | Den færdige hjemmeside, som GitHub Pages viser. Opdateres automatisk. |
 
 ## Opsætning på GitHub
 
@@ -63,3 +66,11 @@ Kræver Python 3.9+. Læg nøglen i `api_key.txt` og kør `python fetch_prices.p
 
 - Priserne er den laveste pris datakilden finder – ikke billetklasser eller restpladser.
 - Selskaber, der kun sælger pakkerejser, er typisk ikke med.
+
+## Dashboard på GitHub Pages (kan ses uden login)
+
+1. *Settings → Pages → Build and deployment*: Source = **Deploy from a branch**, Branch = **main**, mappe = **/docs** → **Save**.
+2. Efter et par minutter står adressen øverst på samme side, typisk `https://<brugernavn>.github.io/<repository>/`.
+3. Siden opdateres automatisk hver mandag efter prishentningen. Vil du bygge den igen uden at hente priser: *Actions → Run workflow → dashboard*.
+
+GitHub Pages fra et **privat** repository kræver GitHub Pro (eller Team). Selve hjemmesiden er altid offentlig for alle, der kender adressen; den er markeret, så søgemaskiner ikke viser den.
