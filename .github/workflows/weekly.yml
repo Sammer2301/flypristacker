@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "test = 2 søgninger, gemmer intet. fuld = rigtig kørsel, gemmes."
+        description: "test = 2 søgninger, gemmer intet. fuld = rigtig kørsel, gemmes. dashboard = byg kun hjemmesiden igen (ingen søgninger)."
         type: choice
-        options: [test, fuld]
+        options: [test, fuld, dashboard]
         default: test
 
 env:
@@ -58,13 +58,14 @@ jobs:
 
       # Kører også hvis hentningen fejlede eller blev afbrudt, så de priser
       # der nåede at blive hentet (og betalt) altid bliver gemt.
-      - name: Gem data i repository
-        if: always() && (github.event_name == 'schedule' || inputs.mode == 'fuld')
+      - name: Gem data og opdatér dashboard
+        if: always() && (github.event_name == 'schedule' || inputs.mode == 'fuld' || inputs.mode == 'dashboard')
         run: |
           [ -d data ] || exit 0
+          if [ -f data/prices_google.csv ]; then python dashboard/build.py; touch docs/.nojekyll; fi
           git config user.name "flypris-bot"
           git config user.email "flypris-bot@users.noreply.github.com"
-          git add data/
+          git add data/ docs/
           git diff --cached --quiet && exit 0
           git commit -m "Priser $(date -u +%F)"
           git pull --rebase
