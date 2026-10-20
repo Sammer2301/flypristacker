@@ -75,6 +75,7 @@ PROVIDERS = {
             "hl": "da",
             "deep_search": "true",  # samme resultater som Google Flights i browseren
             "show_hidden": "true",  # medtag også "flere fly"
+            "no_cache": "true",     # altid frisk søgning; et genbrugt resultat kan mangle priser
         },
         "file": "prices_google.csv",
         "per_hour": 190,  # Starter-planen tillader 200 i timen; lidt margen
@@ -96,7 +97,11 @@ PROVIDERS = {
 if PROVIDER not in PROVIDERS:
     sys.exit(f"Ukendt PROVIDER '{PROVIDER}'. Brug 'serpapi' eller 'ignav'.")
 SEARCH_SETTINGS = PROVIDERS[PROVIDER]["params"]
-# Maks. antal gensøgninger per kørsel, når Google Flights mangler en pris (beskytter kvoten)
+# Når Google Flights mangler prisen på et direkte fly (typisk SAS), søges datoen
+# igen i disse markeder i rækkefølge, og kun de manglende priser udfyldes.
+# Første gensøgning er i det danske marked igen; derefter norsk og svensk.
+FALLBACK_MARKETS = [m.strip() for m in os.environ.get("FALLBACK_MARKETS", "dk,no,se").split(",") if m.strip()]
+# Maks. antal ekstra søgninger per kørsel til at udfylde manglende priser (beskytter kvoten)
 MAX_PRICE_RETRIES = int(os.environ.get("MAX_PRICE_RETRIES", "30"))
 # Maks. søgninger i timen (kan overstyres med MAX_PER_HOUR, fx ved større SerpApi-plan)
 PER_HOUR = int(os.environ.get("MAX_PER_HOUR") or PROVIDERS[PROVIDER]["per_hour"] or 0)
@@ -224,11 +229,13 @@ def _http(req, retries=4):
     raise RuntimeError(last_err)
 
 
-def search(api_key, origin, destination, date, fresh=False):
+def search(api_key, origin, destination, date, fresh=False, market=None):
     cfg = PROVIDERS[PROVIDER]
     if PROVIDER == "serpapi":
         q = dict(cfg["params"], departure_id=origin, arrival_id=destination,
                  outbound_date=date.isoformat(), api_key=api_key)
+        if market:
+            q["gl"] = market  # søg som kunde i et andet land (valuta forbliver DKK)
         if fresh:
             q["no_cache"] = "true"  # ny søgning hos Google, ikke SerpApis cache
         req = urllib.request.Request(cfg["url"] + "?" + urllib.parse.urlencode(q),
@@ -309,6 +316,7 @@ def _parse_serpapi(data, origin, destination, date, today, observed_at):
             continue  # kun direkte fly
         fnums = [(s.get("flight_number") or "").replace(" ", "") for s in segs]
         codes = sorted({(s.get("flight_number") or "").split(" ")[0] for s in segs} - {""})
+        market = it.get("_market")
         row = {
             **_base_row(origin, destination, date, today, observed_at),
             "carrier": segs[0].get("airline", ""),
@@ -320,7 +328,7 @@ def _parse_serpapi(data, origin, destination, date, today, observed_at):
             "duration_minutes": it.get("total_duration", ""),
             "price": "" if price is None else price,
             "currency": SEARCH_SETTINGS["currency"],
-            "price_status": "unavailable" if price is None else "",
+            "price_status": "unavailable" if price is None else (f"market_{market}" if market else ""),
             "cabin_class": "economy",
             "self_transfer": False,
         }
@@ -337,10 +345,27 @@ def missing_prices(data):
                for it in (data.get("best_flights") or []) + (data.get("other_flights") or []))
 
 
-def merge_serpapi(first, second):
-    """Saml to svar for samme søgning, så en pris fra gensøgningen udfylder et hul."""
-    return {"best_flights": (first.get("best_flights") or []) + (second.get("best_flights") or []),
-            "other_flights": (first.get("other_flights") or []) + (second.get("other_flights") or [])}
+def _fnums(it):
+    return " + ".join((s.get("flight_number") or "").replace(" ", "") for s in it.get("flights") or [])
+
+
+def fill_missing_prices(data, other, market):
+    """Udfyld manglende priser i `data` med priser for samme fly fra et andet marked.
+    Kun fly uden pris røres; danske priser overskrives aldrig. Returnerer antal udfyldte."""
+    found = {}
+    for it in (other.get("best_flights") or []) + (other.get("other_flights") or []):
+        if it.get("layovers") or it.get("price") is None:
+            continue
+        k = _fnums(it)
+        if k not in found or it["price"] < found[k]:
+            found[k] = it["price"]
+    filled = 0
+    for it in (data.get("best_flights") or []) + (data.get("other_flights") or []):
+        if not it.get("layovers") and it.get("price") is None and _fnums(it) in found:
+            it["price"] = found[_fnums(it)]
+            it["_market"] = "" if market == "dk" else market
+            filled += 1
+    return filled
 
 def append_csv(path, columns, rows):
     if not rows:
@@ -416,7 +441,7 @@ def main():
         print(f"Bremse: højst {PER_HOUR} søgninger i timen "
               f"(ca. {len(jobs) * interval / 60:.0f} min for denne kørsel)")
 
-    retries = {"left": MAX_PRICE_RETRIES, "used": 0, "lock": threading.Lock()}
+    retries = {"left": MAX_PRICE_RETRIES, "used": 0, "filled": 0, "lock": threading.Lock()}
 
     def wait_turn():
         if interval:
@@ -435,20 +460,26 @@ def main():
             return None
         try:
             data = search(api_key, o, d, date)
-            if PROVIDER == "serpapi" and missing_prices(data):
-                with retries["lock"]:
-                    ok_retry = retries["left"] > 0
-                    if ok_retry:
-                        retries["left"] -= 1
-                        retries["used"] += 1
-                if ok_retry:
+            if PROVIDER == "serpapi":
+                for market in FALLBACK_MARKETS:
+                    if not missing_prices(data):
+                        break
+                    with retries["lock"]:
+                        ok_retry = retries["left"] > 0
+                        if ok_retry:
+                            retries["left"] -= 1
+                            retries["used"] += 1
+                    if not ok_retry:
+                        break
                     wait_turn()
                     try:
-                        data = merge_serpapi(data, search(api_key, o, d, date, fresh=True))
+                        n = fill_missing_prices(data, search(api_key, o, d, date, market=market), market)
+                        with retries["lock"]:
+                            retries["filled"] += n
                     except FatalApiError:
                         raise
                     except Exception:
-                        pass  # behold første svar
+                        pass  # behold det, vi har
             return data
         except FatalApiError as e:
             stop["fatal"] = e
@@ -470,7 +501,7 @@ def main():
                 currencies, ok, fails, total_rows)
 
     if retries["used"]:
-        print(f"Gensøgte {retries['used']} afgange, hvor Google Flights manglede en pris")
+        print(f"Ekstra søgninger for manglende priser: {retries['used']}, udfyldte priser: {retries['filled']}")
     if stop["fatal"]:
         print(f"\nGemt indtil stop: {ok} søgninger OK, {total_rows} prisrækker")
         sys.exit(f"Stoppet: {stop['fatal']}\n(forkert API-nøgle, eller ingen søgninger tilbage på kontoen)")

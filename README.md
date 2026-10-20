@@ -7,8 +7,9 @@ Henter hver mandag kl. 07 konkurrenternes laveste priser fra Google Flights (via
 - **Ruter (4, kun udrejse):** CPH–CHQ, CPH–LCA, CPH–PMI, BLL–PMI (BLL–CHQ og BLL–LCA er fjernet: ingen direkte rutefly)
 - **Afgange:** torsdage og lørdage i uge 18–39 2027 (6. maj – 2. oktober 2027), 44 per rute
 - **Søgning:** 1 voksen, one-way, economy, kun direkte fly, ingen selvtransfer, dansk marked, priser i DKK, laveste pris uden krav om bagage
-- **Omfang:** 176 søgninger per kørsel plus højst 30 gensøgninger, når Google Flights mangler en pris. Højst ca. 890 om måneden. Passer i SerpApi Starter ($25/md., 1.000 søgninger, 200 i timen). Scriptet holder sig under 190 søgninger i timen, så en kørsel tager ca. 1 time.
-- **Data:** `data/prices_google.csv`. Fly uden pris gemmes med tom pris og `price_status = unavailable`.
+- **Omfang:** 176 søgninger per kørsel plus højst 30 ekstra søgninger til manglende priser. Højst ca. 890 om måneden. Passer i SerpApi Starter ($25/md., 1.000 søgninger, 200 i timen). Scriptet holder sig under 190 søgninger i timen, så en kørsel tager ca. 1 time.
+- **Manglende priser:** Alle søgninger er friske (`no_cache`). Mangler Google Flights alligevel prisen på et direkte fly (typisk SAS), søges datoen igen som dansk kunde, derefter som norsk og svensk kunde (stadig i DKK). Kun manglende priser udfyldes; priser fra norsk/svensk marked er markeret `price_status = market_no` / `market_se`.
+- **Data:** `data/prices_google.csv`. Fly, hvor prisen stadig mangler, gemmes med tom pris og `price_status = unavailable`.
 
 Søgedefinitionen ligger fast i toppen af `fetch_prices.py`. Ændres den undervejs, kan nye og gamle priser ikke sammenlignes.
 
